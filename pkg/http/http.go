@@ -9,6 +9,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 
+	mgerrors "github.com/absmach/magistrala/pkg/errors"
 	"github.com/absmach/mproxy/pkg/logger"
 	"github.com/absmach/mproxy/pkg/session"
 )
@@ -65,8 +66,14 @@ func (p *Proxy) Handler(w http.ResponseWriter, r *http.Request) {
 	p.target.ServeHTTP(w, r)
 }
 
-func encodeError(w http.ResponseWriter, statusCode int, err error) {
-	w.WriteHeader(statusCode)
+func encodeError(w http.ResponseWriter, defStatusCode int, err error) {
+	hpe, ok := err.(HTTPProxyError)
+	switch ok {
+	case true:
+		w.WriteHeader(hpe.StatusCode())
+	default:
+		w.WriteHeader(defStatusCode)
+	}
 	w.Header().Set("Content-Type", contentType)
 	if err := json.NewEncoder(w).Encode(err); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -111,4 +118,42 @@ func (p *Proxy) ListenTLS(cert, key string) error {
 
 	p.logger.Info("Server Exiting...")
 	return nil
+}
+
+type httpProxyError struct {
+	statusCode int
+	err        mgerrors.Error
+}
+type HTTPProxyError interface {
+	mgerrors.Error
+	StatusCode() int
+}
+
+var _ HTTPProxyError = (*httpProxyError)(nil)
+
+func (hpe *httpProxyError) Error() string {
+	return hpe.err.Error()
+}
+
+func (hpe *httpProxyError) Err() mgerrors.Error {
+	return hpe.err
+}
+func (hpe *httpProxyError) Msg() string {
+	return hpe.err.Msg()
+}
+func (hpe *httpProxyError) MarshalJSON() ([]byte, error) {
+	return hpe.err.MarshalJSON()
+}
+
+func (hpe *httpProxyError) StatusCode() int {
+	return hpe.statusCode
+}
+
+func NewHTTPProxyError(statusCode int, err error) HTTPProxyError {
+	var merr mgerrors.Error
+	var ok bool
+	if merr, ok = err.(mgerrors.Error); !ok {
+		merr = mgerrors.New(err.Error())
+	}
+	return &httpProxyError{statusCode: statusCode, err: merr}
 }
