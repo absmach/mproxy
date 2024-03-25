@@ -8,31 +8,37 @@ import (
 	"crypto/tls"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
-	"net/url"
+	"strings"
 	"time"
 
+	"github.com/absmach/mproxy"
 	"github.com/absmach/mproxy/pkg/session"
 	mptls "github.com/absmach/mproxy/pkg/tls"
 	"github.com/gorilla/websocket"
+	"golang.org/x/sync/errgroup"
 )
 
 // Proxy represents WS Proxy.
 type Proxy struct {
-	target      string
-	path        string
-	scheme      string
+	config      mproxy.Config
 	handler     session.Handler
 	interceptor session.Interceptor
 	logger      *slog.Logger
 }
 
 // New - creates new WS proxy.
-func New(target, path, scheme string, handler session.Handler, interceptor session.Interceptor, logger *slog.Logger) *Proxy {
+func New(config mproxy.Config, handler session.Handler, interceptor session.Interceptor, logger *slog.Logger) *Proxy {
+	config.PrefixPath = strings.TrimSpace(config.PrefixPath)
+	switch {
+	case config.PrefixPath != "" && config.PrefixPath[0] != '/':
+		config.PrefixPath = "/" + config.PrefixPath
+	case config.PrefixPath == "":
+		config.PrefixPath = "/"
+	}
 	return &Proxy{
-		target:      target,
-		path:        path,
-		scheme:      scheme,
+		config:      config,
 		handler:     handler,
 		interceptor: interceptor,
 		logger:      logger,
@@ -50,37 +56,28 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-// Handler - proxies WS traffic.
-func (p Proxy) Handler() http.Handler {
-	return p.handle()
-}
+func (p Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != p.config.PrefixPath {
+		http.NotFound(w, r)
+		return
+	}
+	cconn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		p.logger.Error("Error upgrading connection", slog.Any("error", err))
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
-func (p Proxy) handle() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		cconn, err := upgrader.Upgrade(w, r, nil)
-		if err != nil {
-			p.logger.Error("Error upgrading connection", slog.Any("error", err))
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		go p.pass(r.Context(), cconn)
-	})
+	go p.pass(r.Context(), cconn)
 }
 
 func (p Proxy) pass(ctx context.Context, in *websocket.Conn) {
 	defer in.Close()
 
-	websocketURL := url.URL{
-		Scheme: p.scheme,
-		Host:   p.target,
-		Path:   p.path,
-	}
-
 	dialer := &websocket.Dialer{
 		Subprotocols: []string{"mqtt"},
 	}
-	srv, _, err := dialer.Dial(websocketURL.String(), nil)
+	srv, _, err := dialer.Dial(p.config.Target, nil)
 	if err != nil {
 		p.logger.Error("Unable to connect to broker", slog.Any("error", err))
 		return
@@ -104,18 +101,36 @@ func (p Proxy) pass(ctx context.Context, in *websocket.Conn) {
 	p.logger.Warn("Broken connection for client", slog.Any("error", err))
 }
 
-// Listen of the server.
-func (p Proxy) Listen(wsPort string) error {
-	port := fmt.Sprintf(":%s", wsPort)
-	return http.ListenAndServe(port, nil)
-}
-
-// ListenTLS - version of Listen with TLS encryption.
-func (p Proxy) ListenTLS(tlsCfg *tls.Config, crt, key, wssPort string) error {
-	port := fmt.Sprintf(":%s", wssPort)
-	server := &http.Server{
-		Addr:      port,
-		TLSConfig: tlsCfg,
+func (p Proxy) Listen(ctx context.Context) error {
+	l, err := net.Listen("tcp", p.config.Address)
+	if err != nil {
+		return err
 	}
-	return server.ListenAndServeTLS(crt, key)
+
+	if p.config.TLSConfig != nil {
+		l = tls.NewListener(l, p.config.TLSConfig)
+	}
+
+	var server http.Server
+	g, ctx := errgroup.WithContext(ctx)
+
+	mux := http.NewServeMux()
+	mux.Handle(p.config.PrefixPath, p)
+	server.Handler = mux
+
+	g.Go(func() error {
+		return server.Serve(l)
+	})
+	p.logger.Info(fmt.Sprintf("MQTT websocket proxy server started at %s%s %s", p.config.Address, p.config.PrefixPath, p.config.Security))
+
+	g.Go(func() error {
+		<-ctx.Done()
+		return server.Close()
+	})
+	if err := g.Wait(); err != nil {
+		p.logger.Info(fmt.Sprintf("MQTT websocket proxy server at %s%s %s exiting with errors", p.config.Address, p.config.PrefixPath, p.config.Security), slog.String("error", err.Error()))
+	} else {
+		p.logger.Info(fmt.Sprintf("MQTT websocket proxy server at %s%s %s exiting...", p.config.Address, p.config.PrefixPath, p.config.Security))
+	}
+	return nil
 }
