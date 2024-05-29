@@ -27,7 +27,7 @@ type Proxy struct {
 }
 
 // New returns a new MQTT Proxy instance.
-func New(config mproxy.Config, handler session.Handler, interceptor session.Interceptor, logger *slog.Logger) *Proxy {
+func NewProxy(config mproxy.Config, handler session.Handler, interceptor session.Interceptor, logger *slog.Logger) *Proxy {
 	return &Proxy{
 		config:      config,
 		handler:     handler,

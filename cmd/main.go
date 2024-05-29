@@ -13,6 +13,7 @@ import (
 
 	"github.com/absmach/mproxy"
 	"github.com/absmach/mproxy/examples/simple"
+	"github.com/absmach/mproxy/pkg/coap"
 	"github.com/absmach/mproxy/pkg/http"
 	"github.com/absmach/mproxy/pkg/mqtt"
 	"github.com/absmach/mproxy/pkg/mqtt/websocket"
@@ -34,6 +35,9 @@ const (
 	httpWithoutTLS = "MPROXY_HTTP_WITHOUT_TLS_"
 	httpWithTLS    = "MPROXY_HTTP_WITH_TLS_"
 	httpWithmTLS   = "MPROXY_HTTP_WITH_MTLS_"
+
+	coapWithoutDTLS = "MPROXY_COAP_WITHOUT_DTLS_"
+	coapWithDTLS    = "MPROXY_COAP_WITH_DTLS_"
 )
 
 func main() {
@@ -62,7 +66,7 @@ func main() {
 	}
 
 	// mProxy server for MQTT without TLS
-	mqttProxy := mqtt.New(mqttConfig, handler, interceptor, logger)
+	mqttProxy := mqtt.NewProxy(mqttConfig, handler, interceptor, logger)
 	g.Go(func() error {
 		return mqttProxy.Listen(ctx)
 	})
@@ -74,7 +78,7 @@ func main() {
 	}
 
 	// mProxy server for MQTT with TLS
-	mqttTLSProxy := mqtt.New(mqttTLSConfig, handler, interceptor, logger)
+	mqttTLSProxy := mqtt.NewProxy(mqttTLSConfig, handler, interceptor, logger)
 	g.Go(func() error {
 		return mqttTLSProxy.Listen(ctx)
 	})
@@ -86,7 +90,7 @@ func main() {
 	}
 
 	// mProxy server for MQTT with mTLS
-	mqttMTlsProxy := mqtt.New(mqttMTLSConfig, handler, interceptor, logger)
+	mqttMTlsProxy := mqtt.NewProxy(mqttMTLSConfig, handler, interceptor, logger)
 	g.Go(func() error {
 		return mqttMTlsProxy.Listen(ctx)
 	})
@@ -98,7 +102,7 @@ func main() {
 	}
 
 	// mProxy server for MQTT over Websocket without TLS
-	wsProxy := websocket.New(wsConfig, handler, interceptor, logger)
+	wsProxy := websocket.NewProxy(wsConfig, handler, interceptor, logger)
 	g.Go(func() error {
 		return wsProxy.Listen(ctx)
 	})
@@ -110,7 +114,7 @@ func main() {
 	}
 
 	// mProxy server for MQTT over Websocket with TLS
-	wsTLSProxy := websocket.New(wsTLSConfig, handler, interceptor, logger)
+	wsTLSProxy := websocket.NewProxy(wsTLSConfig, handler, interceptor, logger)
 	g.Go(func() error {
 		return wsTLSProxy.Listen(ctx)
 	})
@@ -122,7 +126,7 @@ func main() {
 	}
 
 	// mProxy server for MQTT over Websocket with mTLS
-	wsMTLSProxy := websocket.New(wsMTLSConfig, handler, interceptor, logger)
+	wsMTLSProxy := websocket.NewProxy(wsMTLSConfig, handler, interceptor, logger)
 	g.Go(func() error {
 		return wsMTLSProxy.Listen(ctx)
 	})
@@ -170,6 +174,30 @@ func main() {
 	}
 	g.Go(func() error {
 		return httpMTLSProxy.Listen(ctx)
+	})
+
+	// mProxy server Configuration for CoAP without DTLS
+	coapConfig, err := mproxy.NewConfig(env.Options{Prefix: coapWithoutDTLS})
+	if err != nil {
+		panic(err)
+	}
+
+	// mProxy server for CoAP without DTLS
+	coapProxy := coap.NewProxy(coapConfig, handler, logger)
+	g.Go(func() error {
+		return coapProxy.Listen(ctx)
+	})
+
+	// mProxy server Configuration for CoAP with DTLS
+	coapDTLSConfig, err := mproxy.NewConfig(env.Options{Prefix: coapWithDTLS})
+	if err != nil {
+		panic(err)
+	}
+
+	// mProxy server for CoAP with DTLS
+	coapDTLSProxy := coap.NewProxy(coapDTLSConfig, handler, logger)
+	g.Go(func() error {
+		return coapDTLSProxy.Listen(ctx)
 	})
 
 	g.Go(func() error {

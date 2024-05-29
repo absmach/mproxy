@@ -82,6 +82,7 @@ LB tasks can be offloaded to a standard ingress proxy - for example, NginX.
 - Golang
 - Mosquitto MQTT Server
 - Mosquitto Publisher and Subscriber Client
+- coap-client or Magistrala coap-cli
 
 ### Example Setup of mProxy
 
@@ -122,6 +123,8 @@ mProxy is used to proxy requests to a backend server. For the example setup, we 
    - mProxy server for `HTTP protocol without TLS` on port `8086` with prefix path `/messages`
    - mProxy server for `HTTP protocol with TLS` on port `8087` with prefix path `/messages`
    - mProxy server for `HTTP protocol with mTLS` on port `8088` with prefix path `/messages`
+   - mProxy server for `COAP protocol without DTLS` on port `5682`
+   - mProxy server for `COAP protocol with DTLS` on port `5684`
 
 ### Example testing of mProxy
 
@@ -191,6 +194,23 @@ Bash scripts available in `examples/client/http` directory help to test the mPro
   examples/client/http/with_mtls.sh
   ```
 
+### Test mProxy server for CoAP protocols
+
+Bash scripts available in `example/client/coap` directory help to test the mProxy servers running for CoAP protocols. You will require to have either the [coap-client](https://libcoap.net/doc/reference/4.3.1/man_coap-client.html) or the [Magistrala coap-cli](https://github.com/absmach/coap-cli).
+The script can be used alongside the simple go-coap server provided at `example/server/coap`.
+
+- Script to test mProxy server running at 5682 for CoAP without DTLS
+
+  ```bash
+    examples/client/coap/without_dtls.sh
+  ```
+
+- Script to test mProxy server running at 5684 for CoAP with DTLS
+
+  ```bash
+    examples/client/coap/with_dtls.sh
+  ```
+
 ## Configuration
 
 The service is configured using the environment variables presented in the following table. Note that any unset variables will be replaced with their default values.
@@ -246,6 +266,14 @@ The service is configured using the environment variables presented in the follo
 | MPROXY_HTTP_WITH_MTLS_CLIENT_CA_FILE               | HTTP with mTLS client CA file path                                                                                                    | ssl/certs/ca.crt             |
 | MPROXY_HTTP_WITH_MTLS_CERT_VERIFICATION_METHODS    | HTTP with mTLS certificate verification methods, if no value or unset then mProxy server will not do client validation                | ocsp                         |
 | MPROXY_HTTP_WITH_MTLS_OCSP_RESPONDER_URL           | HTTP with mTLS OCSP responder URL, it is used if OCSP responder URL is not available in client certificate AIA                        | <http://localhost:8080/ocsp> |
+| MPROXY_COAP_WITHOUT_DTLS_ADDRESS                   | CoAP without DTLS inbound (IN) connection listening address                                                                           | localhost:5682               |
+| MPROXY_COAP_WITH_DTLS_TARGET                       | CoAP without DTLS outbound (OUT) connection                                                                                           | localhost:5683               |
+| MPROXY_COAP_WITH_DTLS_ADDRESS                      | CoAP with DTLS inbound (IN) connection listening address                                                                              | localhost:5684               |
+| MPROXY_COAP_WITH_DTLS_TARGET                       | CoAP with DTLS outbound (OUT) connection                                                                                              | localhost:5683               |
+| MPROXY_COAP_WITH_DTLS_CERT_FILE                    | CoAP with DTLS certificate file                                                                                                       | ssl/certs/server.crt         |
+| MPROXY_COAP_WITH_DTLS_KEY_FILE                     | CoAP with DTLS key file                                                                                                               | ssl/certs/server.key         |
+| MPROXY_COAP_WITH_DTLS_SERVER_CA_FILE               | CoAP with DTLS server CA file                                                                                                         | ssl/certs/ca.crt             |
+| MPROXY_COAP_WITH_DTLS_CLIENT_CA_FILE               | CoAP with DTLS client CA file                                                                                                         | ssl/certs/ca.crt             |
 
 ## mProxy Configuration Environment Variables
 

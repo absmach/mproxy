@@ -28,8 +28,8 @@ type Proxy struct {
 	logger      *slog.Logger
 }
 
-// New - creates new WS proxy.
-func New(config mproxy.Config, handler session.Handler, interceptor session.Interceptor, logger *slog.Logger) *Proxy {
+// NewProxy - creates new WS proxy.
+func NewProxy(config mproxy.Config, handler session.Handler, interceptor session.Interceptor, logger *slog.Logger) *Proxy {
 	return &Proxy{
 		config:      config,
 		handler:     handler,
