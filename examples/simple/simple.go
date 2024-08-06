@@ -8,6 +8,7 @@ import (
 	"errors"
 	"log/slog"
 
+	"github.com/absmach/mproxy"
 	"github.com/absmach/mproxy/pkg/session"
 )
 
@@ -71,7 +72,7 @@ func (h *Handler) Disconnect(ctx context.Context) error {
 }
 
 func (h *Handler) logAction(ctx context.Context, action string, topics *[]string, payload *[]byte) error {
-	s, ok := session.FromContext(ctx)
+	s, ok := mproxy.FromContext(ctx)
 	args := []interface{}{
 		slog.Group("session", slog.String("id", s.ID), slog.String("username", s.Username)),
 	}

@@ -6,7 +6,7 @@ package mproxy
 import (
 	"crypto/tls"
 
-	mptls "github.com/absmach/mproxy/pkg/tls"
+	mptls "github.com/absmach/mproxy/tls"
 	"github.com/caarlos0/env/v11"
 )
 
