@@ -37,7 +37,7 @@ func (h *NATSHandler) Detect(data []byte) bool {
 
 func (h *NATSHandler) HandleClientData(ctx context.Context, data []byte, conn mgate.ConnectionInfo) ([]byte, bool, error) {
 	if h.logOps {
-		h.logNATSOperation(data, conn.ClientAddr, "->")
+		h.logNATSOperation(data, conn.Client.Addr, "->")
 	}
 	return data, true, nil
 }
@@ -107,12 +107,12 @@ func (h *NATSHandler) logNATSOperation(data []byte, addr string, direction strin
 }
 
 func (h *NATSHandler) OnConnect(ctx context.Context, conn mgate.ConnectionInfo) error {
-	log.Printf("[NATS] Connection established: %s -> %s", conn.ClientAddr, conn.ServerAddr)
+	log.Printf("[NATS] Connection established: %s -> %s", conn.Client.Addr, conn.Server.Addr)
 	return nil
 }
 
 func (h *NATSHandler) OnClose(ctx context.Context, conn mgate.ConnectionInfo) error {
 	duration := time.Since(conn.StartTime)
-	log.Printf("[NATS] Connection closed: %s (duration: %v)", conn.ClientAddr, duration)
+	log.Printf("[NATS] Connection closed: %s (duration: %v)", conn.Client.Addr, duration)
 	return nil
 }

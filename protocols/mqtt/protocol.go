@@ -42,7 +42,7 @@ func (h *MQTTHandler) HandleClientData(ctx context.Context, data []byte, conn mg
 		if name == "" {
 			name = fmt.Sprintf("UNKNOWN(%d)", packetType)
 		}
-		log.Printf("[MQTT] %s -> %s", conn.ClientAddr, name)
+		log.Printf("[MQTT] %s -> %s", conn.Client.Addr, name)
 	}
 	return data, true, nil
 }
@@ -52,12 +52,12 @@ func (h *MQTTHandler) HandleServerData(ctx context.Context, data []byte, conn mg
 }
 
 func (h *MQTTHandler) OnConnect(ctx context.Context, conn mgate.ConnectionInfo) error {
-	log.Printf("[MQTT] Connection established: %s -> %s", conn.ClientAddr, conn.ServerAddr)
+	log.Printf("[MQTT] Connection established: %s -> %s", conn.Client.Addr, conn.Server.Addr)
 	return nil
 }
 
 func (h *MQTTHandler) OnClose(ctx context.Context, conn mgate.ConnectionInfo) error {
 	duration := time.Since(conn.StartTime)
-	log.Printf("[MQTT] Connection closed: %s (duration: %v)", conn.ClientAddr, duration)
+	log.Printf("[MQTT] Connection closed: %s (duration: %v)", conn.Client.Addr, duration)
 	return nil
 }

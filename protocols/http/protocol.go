@@ -37,7 +37,7 @@ func (h *HTTPHandler) HandleClientData(ctx context.Context, data []byte, conn mg
 	if h.logRequests {
 		lines := strings.Split(string(data), "\r\n")
 		if len(lines) > 0 {
-			log.Printf("[HTTP] %s -> Request: %s", conn.ClientAddr, lines[0])
+			log.Printf("[HTTP] %s -> Request: %s", conn.Client.Addr, lines[0])
 		}
 	}
 	return data, true, nil
@@ -48,12 +48,12 @@ func (h *HTTPHandler) HandleServerData(ctx context.Context, data []byte, conn mg
 }
 
 func (h *HTTPHandler) OnConnect(ctx context.Context, conn mgate.ConnectionInfo) error {
-	log.Printf("[HTTP] Connection established: %s -> %s", conn.ClientAddr, conn.ServerAddr)
+	log.Printf("[HTTP] Connection established: %s -> %s", conn.Client.Addr, conn.Server.Addr)
 	return nil
 }
 
 func (h *HTTPHandler) OnClose(ctx context.Context, conn mgate.ConnectionInfo) error {
 	duration := time.Since(conn.StartTime)
-	log.Printf("[HTTP] Connection closed: %s (duration: %v)", conn.ClientAddr, duration)
+	log.Printf("[HTTP] Connection closed: %s (duration: %v)", conn.Client.Addr, duration)
 	return nil
 }

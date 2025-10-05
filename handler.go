@@ -7,9 +7,6 @@ type Handler interface {
 	// Name returns the protocol name.
 	Name() string
 
-	// Detect checks if this handler can handle the connection based on initial data.
-	Detect(data []byte) bool
-
 	// HandleClientData processes data from client to server.
 	// Returns modified data and whether to continue proxying.
 	HandleClientData(ctx context.Context, data []byte, conn ConnectionInfo) ([]byte, bool, error)

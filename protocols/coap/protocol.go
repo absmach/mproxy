@@ -34,7 +34,7 @@ func (h *CoAPHandler) HandleClientData(ctx context.Context, data []byte, conn mg
 	if h.logMessages && len(data) >= 4 {
 		msgType := (data[0] >> 4) & 0x03
 		typeNames := []string{"CON", "NON", "ACK", "RST"}
-		log.Printf("[CoAP] %s -> %s", conn.ClientAddr, typeNames[msgType])
+		log.Printf("[CoAP] %s -> %s", conn.Client.Addr, typeNames[msgType])
 	}
 	return data, true, nil
 }
@@ -44,12 +44,12 @@ func (h *CoAPHandler) HandleServerData(ctx context.Context, data []byte, conn mg
 }
 
 func (h *CoAPHandler) OnConnect(ctx context.Context, conn mgate.ConnectionInfo) error {
-	log.Printf("[CoAP] Connection established: %s -> %s", conn.ClientAddr, conn.ServerAddr)
+	log.Printf("[CoAP] Connection established: %s -> %s", conn.Client.Addr, conn.Server.Addr)
 	return nil
 }
 
 func (h *CoAPHandler) OnClose(ctx context.Context, conn mgate.ConnectionInfo) error {
 	duration := time.Since(conn.StartTime)
-	log.Printf("[CoAP] Connection closed: %s (duration: %v)", conn.ClientAddr, duration)
+	log.Printf("[CoAP] Connection closed: %s (duration: %v)", conn.Client.Addr, duration)
 	return nil
 }
