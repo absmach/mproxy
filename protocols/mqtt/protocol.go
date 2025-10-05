@@ -1,10 +1,12 @@
-package mgate
+package mqtt
 
 import (
 	"context"
 	"fmt"
 	"log"
 	"time"
+
+	"github.com/absmach/mgate"
 )
 
 // MQTTHandler handles MQTT protocol
@@ -12,7 +14,7 @@ type MQTTHandler struct {
 	logPackets bool
 }
 
-func NewMQTTHandler(logPackets bool) *MQTTHandler {
+func New(logPackets bool) *MQTTHandler {
 	return &MQTTHandler{logPackets: logPackets}
 }
 
@@ -29,7 +31,7 @@ func (h *MQTTHandler) Detect(data []byte) bool {
 	return packetType == 1
 }
 
-func (h *MQTTHandler) HandleClientData(ctx context.Context, data []byte, conn ConnectionInfo) ([]byte, bool, error) {
+func (h *MQTTHandler) HandleClientData(ctx context.Context, data []byte, conn mgate.ConnectionInfo) ([]byte, bool, error) {
 	if h.logPackets && len(data) > 0 {
 		packetType := data[0] >> 4
 		packetNames := map[byte]string{
@@ -45,16 +47,16 @@ func (h *MQTTHandler) HandleClientData(ctx context.Context, data []byte, conn Co
 	return data, true, nil
 }
 
-func (h *MQTTHandler) HandleServerData(ctx context.Context, data []byte, conn ConnectionInfo) ([]byte, bool, error) {
+func (h *MQTTHandler) HandleServerData(ctx context.Context, data []byte, conn mgate.ConnectionInfo) ([]byte, bool, error) {
 	return data, true, nil
 }
 
-func (h *MQTTHandler) OnConnect(ctx context.Context, conn ConnectionInfo) error {
+func (h *MQTTHandler) OnConnect(ctx context.Context, conn mgate.ConnectionInfo) error {
 	log.Printf("[MQTT] Connection established: %s -> %s", conn.ClientAddr, conn.ServerAddr)
 	return nil
 }
 
-func (h *MQTTHandler) OnClose(ctx context.Context, conn ConnectionInfo) error {
+func (h *MQTTHandler) OnClose(ctx context.Context, conn mgate.ConnectionInfo) error {
 	duration := time.Since(conn.StartTime)
 	log.Printf("[MQTT] Connection closed: %s (duration: %v)", conn.ClientAddr, duration)
 	return nil

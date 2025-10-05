@@ -1,10 +1,12 @@
-package mgate
+package nats
 
 import (
 	"bytes"
 	"context"
 	"log"
 	"time"
+
+	"github.com/absmach/mgate"
 )
 
 // NATSHandler handles NATS protocol
@@ -12,7 +14,7 @@ type NATSHandler struct {
 	logOps bool
 }
 
-func NewNATSHandler(logOps bool) *NATSHandler {
+func New(logOps bool) *NATSHandler {
 	return &NATSHandler{logOps: logOps}
 }
 
@@ -33,14 +35,14 @@ func (h *NATSHandler) Detect(data []byte) bool {
 		bytes.HasPrefix(data, []byte("PING"))
 }
 
-func (h *NATSHandler) HandleClientData(ctx context.Context, data []byte, conn ConnectionInfo) ([]byte, bool, error) {
+func (h *NATSHandler) HandleClientData(ctx context.Context, data []byte, conn mgate.ConnectionInfo) ([]byte, bool, error) {
 	if h.logOps {
 		h.logNATSOperation(data, conn.ClientAddr, "->")
 	}
 	return data, true, nil
 }
 
-func (h *NATSHandler) HandleServerData(ctx context.Context, data []byte, conn ConnectionInfo) ([]byte, bool, error) {
+func (h *NATSHandler) HandleServerData(ctx context.Context, data []byte, conn mgate.ConnectionInfo) ([]byte, bool, error) {
 	if h.logOps {
 		h.logNATSOperation(data, "Server", "<-")
 	}
@@ -104,12 +106,12 @@ func (h *NATSHandler) logNATSOperation(data []byte, addr string, direction strin
 	}
 }
 
-func (h *NATSHandler) OnConnect(ctx context.Context, conn ConnectionInfo) error {
+func (h *NATSHandler) OnConnect(ctx context.Context, conn mgate.ConnectionInfo) error {
 	log.Printf("[NATS] Connection established: %s -> %s", conn.ClientAddr, conn.ServerAddr)
 	return nil
 }
 
-func (h *NATSHandler) OnClose(ctx context.Context, conn ConnectionInfo) error {
+func (h *NATSHandler) OnClose(ctx context.Context, conn mgate.ConnectionInfo) error {
 	duration := time.Since(conn.StartTime)
 	log.Printf("[NATS] Connection closed: %s (duration: %v)", conn.ClientAddr, duration)
 	return nil

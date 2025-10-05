@@ -1,9 +1,11 @@
-package mgate
+package coap
 
 import (
 	"context"
 	"log"
 	"time"
+
+	"github.com/absmach/mgate"
 )
 
 // CoAPHandler handles CoAP protocol
@@ -11,7 +13,7 @@ type CoAPHandler struct {
 	logMessages bool
 }
 
-func NewCoAPHandler(logMessages bool) *CoAPHandler {
+func New(logMessages bool) *CoAPHandler {
 	return &CoAPHandler{logMessages: logMessages}
 }
 
@@ -28,7 +30,7 @@ func (h *CoAPHandler) Detect(data []byte) bool {
 	return version == 1
 }
 
-func (h *CoAPHandler) HandleClientData(ctx context.Context, data []byte, conn ConnectionInfo) ([]byte, bool, error) {
+func (h *CoAPHandler) HandleClientData(ctx context.Context, data []byte, conn mgate.ConnectionInfo) ([]byte, bool, error) {
 	if h.logMessages && len(data) >= 4 {
 		msgType := (data[0] >> 4) & 0x03
 		typeNames := []string{"CON", "NON", "ACK", "RST"}
@@ -37,16 +39,16 @@ func (h *CoAPHandler) HandleClientData(ctx context.Context, data []byte, conn Co
 	return data, true, nil
 }
 
-func (h *CoAPHandler) HandleServerData(ctx context.Context, data []byte, conn ConnectionInfo) ([]byte, bool, error) {
+func (h *CoAPHandler) HandleServerData(ctx context.Context, data []byte, conn mgate.ConnectionInfo) ([]byte, bool, error) {
 	return data, true, nil
 }
 
-func (h *CoAPHandler) OnConnect(ctx context.Context, conn ConnectionInfo) error {
+func (h *CoAPHandler) OnConnect(ctx context.Context, conn mgate.ConnectionInfo) error {
 	log.Printf("[CoAP] Connection established: %s -> %s", conn.ClientAddr, conn.ServerAddr)
 	return nil
 }
 
-func (h *CoAPHandler) OnClose(ctx context.Context, conn ConnectionInfo) error {
+func (h *CoAPHandler) OnClose(ctx context.Context, conn mgate.ConnectionInfo) error {
 	duration := time.Since(conn.StartTime)
 	log.Printf("[CoAP] Connection closed: %s (duration: %v)", conn.ClientAddr, duration)
 	return nil

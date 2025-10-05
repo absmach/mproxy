@@ -22,7 +22,7 @@ type ConnectionInfo struct {
 type TCPProxy struct {
 	listenAddr string
 	targetAddr string
-	handlers   []ProtocolHandler
+	handlers   []Handler
 	listener   net.Listener
 	ctx        context.Context
 	cancel     context.CancelFunc
@@ -34,13 +34,13 @@ func NewTCPProxy(listenAddr, targetAddr string) *TCPProxy {
 	return &TCPProxy{
 		listenAddr: listenAddr,
 		targetAddr: targetAddr,
-		handlers:   make([]ProtocolHandler, 0),
+		handlers:   make([]Handler, 0),
 		ctx:        ctx,
 		cancel:     cancel,
 	}
 }
 
-func (p *TCPProxy) AddHandler(handler ProtocolHandler) {
+func (p *TCPProxy) AddHandler(handler Handler) {
 	p.handlers = append(p.handlers, handler)
 }
 
@@ -105,7 +105,7 @@ func (p *TCPProxy) handleConnection(clientConn net.Conn) {
 	initialData, err := reader.Peek(128)
 	clientConn.SetReadDeadline(time.Time{})
 
-	var handler ProtocolHandler
+	var handler Handler
 	if err == nil {
 		for _, h := range p.handlers {
 			if h.Detect(initialData) {
