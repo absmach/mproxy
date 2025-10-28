@@ -14,7 +14,7 @@ type NATSHandler struct {
 	logOps bool
 }
 
-func New(logOps bool) *NATSHandler {
+func New(logOps bool) mgate.Handler {
 	return &NATSHandler{logOps: logOps}
 }
 
@@ -35,18 +35,22 @@ func (h *NATSHandler) Detect(data []byte) bool {
 		bytes.HasPrefix(data, []byte("PING"))
 }
 
-func (h *NATSHandler) HandleClientData(ctx context.Context, data []byte, conn mgate.ConnectionInfo) ([]byte, bool, error) {
-	if h.logOps {
-		h.logNATSOperation(data, conn.Client.Addr, "->")
+func (h *NATSHandler) HandleClientData() mgate.HandleFunc {
+	return func(ctx context.Context, data []byte, conn mgate.ConnectionInfo) ([]byte, bool, error) {
+		if h.logOps {
+			h.logNATSOperation(data, conn.Client.Addr, "->")
+		}
+		return data, true, nil
 	}
-	return data, true, nil
 }
 
-func (h *NATSHandler) HandleServerData(ctx context.Context, data []byte, conn mgate.ConnectionInfo) ([]byte, bool, error) {
-	if h.logOps {
-		h.logNATSOperation(data, "Server", "<-")
+func (h *NATSHandler) HandleServerData() mgate.HandleFunc {
+	return func(ctx context.Context, data []byte, conn mgate.ConnectionInfo) ([]byte, bool, error) {
+		if h.logOps {
+			h.logNATSOperation(data, "Server", "<-")
+		}
+		return data, true, nil
 	}
-	return data, true, nil
 }
 
 func (h *NATSHandler) logNATSOperation(data []byte, addr string, direction string) {

@@ -13,7 +13,7 @@ type CoAPHandler struct {
 	logMessages bool
 }
 
-func New(logMessages bool) *CoAPHandler {
+func New(logMessages bool) mgate.Handler {
 	return &CoAPHandler{logMessages: logMessages}
 }
 
@@ -30,17 +30,21 @@ func (h *CoAPHandler) Detect(data []byte) bool {
 	return version == 1
 }
 
-func (h *CoAPHandler) HandleClientData(ctx context.Context, data []byte, conn mgate.ConnectionInfo) ([]byte, bool, error) {
-	if h.logMessages && len(data) >= 4 {
-		msgType := (data[0] >> 4) & 0x03
-		typeNames := []string{"CON", "NON", "ACK", "RST"}
-		log.Printf("[CoAP] %s -> %s", conn.Client.Addr, typeNames[msgType])
+func (h *CoAPHandler) HandleClientData() mgate.HandleFunc {
+	return func(ctx context.Context, data []byte, conn mgate.ConnectionInfo) ([]byte, bool, error) {
+		if h.logMessages && len(data) >= 4 {
+			msgType := (data[0] >> 4) & 0x03
+			typeNames := []string{"CON", "NON", "ACK", "RST"}
+			log.Printf("[CoAP] %s -> %s", conn.Client.Addr, typeNames[msgType])
+		}
+		return data, true, nil
 	}
-	return data, true, nil
 }
 
-func (h *CoAPHandler) HandleServerData(ctx context.Context, data []byte, conn mgate.ConnectionInfo) ([]byte, bool, error) {
-	return data, true, nil
+func (h *CoAPHandler) HandleServerData() mgate.HandleFunc {
+	return func(ctx context.Context, data []byte, conn mgate.ConnectionInfo) ([]byte, bool, error) {
+		return data, true, nil
+	}
 }
 
 func (h *CoAPHandler) OnConnect(ctx context.Context, conn mgate.ConnectionInfo) error {
@@ -48,7 +52,7 @@ func (h *CoAPHandler) OnConnect(ctx context.Context, conn mgate.ConnectionInfo) 
 	return nil
 }
 
-func (h *CoAPHandler) OnClose(ctx context.Context, conn mgate.ConnectionInfo) error {
+func (h *CoAPHandler) OnDisconnect(ctx context.Context, conn mgate.ConnectionInfo) error {
 	duration := time.Since(conn.StartTime)
 	log.Printf("[CoAP] Connection closed: %s (duration: %v)", conn.Client.Addr, duration)
 	return nil

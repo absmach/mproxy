@@ -108,19 +108,19 @@ func (p *TCPProxy) handleConnection(clientConn net.Conn) {
 	// Client to Server
 	go func() {
 		defer wg.Done()
-		p.pipe(clientConn, serverConn, p.handler.HandleClientData, connInfo)
+		p.pipe(clientConn, serverConn, p.handler.HandleClientData(), connInfo)
 	}()
 
 	// Server to Client
 	go func() {
 		defer wg.Done()
-		p.pipe(serverConn, clientConn, p.handler.HandleServerData, connInfo)
+		p.pipe(serverConn, clientConn, p.handler.HandleServerData(), connInfo)
 	}()
 
 	wg.Wait()
 }
 
-func (p *TCPProxy) pipe(src io.Reader, dst io.Writer, h handleFunc, conn mgate.ConnectionInfo) {
+func (p *TCPProxy) pipe(src io.Reader, dst io.Writer, h mgate.HandleFunc, conn mgate.ConnectionInfo) {
 	buf := make([]byte, p.buffSize)
 	for {
 		select {

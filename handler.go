@@ -9,11 +9,11 @@ type Handler interface {
 
 	// HandleClientData processes data from client to server.
 	// Returns modified data and whether to continue proxying.
-	HandleClientData(ctx context.Context, data []byte, conn ConnectionInfo) ([]byte, bool, error)
+	HandleClientData() HandleFunc
 
 	// HandleServerData processes data from server to client.
 	// Returns modified data and whether to continue proxying.
-	HandleServerData(ctx context.Context, data []byte, conn ConnectionInfo) ([]byte, bool, error)
+	HandleServerData() HandleFunc
 
 	// OnConnect is called when a new connection is established.
 	OnConnect(ctx context.Context, conn ConnectionInfo) error
@@ -21,3 +21,5 @@ type Handler interface {
 	// OnDisconnect is called when the connection is closed.
 	OnDisconnect(ctx context.Context, conn ConnectionInfo) error
 }
+
+type HandleFunc func(ctx context.Context, data []byte, conn ConnectionInfo) ([]byte, bool, error)

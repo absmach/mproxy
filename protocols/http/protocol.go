@@ -33,18 +33,22 @@ func (h *HTTPHandler) Detect(data []byte) bool {
 	return false
 }
 
-func (h *HTTPHandler) HandleClientData(ctx context.Context, data []byte, conn mgate.ConnectionInfo) ([]byte, bool, error) {
-	if h.logRequests {
-		lines := strings.Split(string(data), "\r\n")
-		if len(lines) > 0 {
-			log.Printf("[HTTP] %s -> Request: %s", conn.Client.Addr, lines[0])
+func (h *HTTPHandler) HandleClientData() mgate.HandleFunc {
+	return func(ctx context.Context, data []byte, conn mgate.ConnectionInfo) ([]byte, bool, error) {
+		if h.logRequests {
+			lines := strings.Split(string(data), "\r\n")
+			if len(lines) > 0 {
+				log.Printf("[HTTP] %s -> Request: %s", conn.Client.Addr, lines[0])
+			}
 		}
+		return data, true, nil
 	}
-	return data, true, nil
 }
 
-func (h *HTTPHandler) HandleServerData(ctx context.Context, data []byte, conn mgate.ConnectionInfo) ([]byte, bool, error) {
-	return data, true, nil
+func (h *HTTPHandler) HandleServerData() mgate.HandleFunc {
+	return func(ctx context.Context, data []byte, conn mgate.ConnectionInfo) ([]byte, bool, error) {
+		return data, true, nil
+	}
 }
 
 func (h *HTTPHandler) OnConnect(ctx context.Context, conn mgate.ConnectionInfo) error {

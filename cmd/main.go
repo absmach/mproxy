@@ -9,7 +9,11 @@ import (
 
 func main() {
 	proxy := tcp.New(":8080", ":4222", 32*1024, nats.New(true))
+	// proxy1 := mqtt.New(":8080", ":4222", 32*1024, nats.New(true))
+	// fmt.Println(proxy1)
 
+	// proxy2 := mqtt.New(":8080", ":4222", 32*1024, http.New(true))
+	// fmt.Println(proxy2)
 	// Register handlers (they are checked in order)
 	// proxy.AddHandler(http.New(true))
 	// proxy.AddHandler(ws.New(true))
