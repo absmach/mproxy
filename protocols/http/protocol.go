@@ -33,7 +33,7 @@ func (h *HTTPHandler) Detect(data []byte) bool {
 	return false
 }
 
-func (h *HTTPHandler) HandleClientData() mgate.HandleFunc {
+func (h *HTTPHandler) ClientDataHandler() mgate.HandleFunc {
 	return func(ctx context.Context, data []byte, conn mgate.ConnectionInfo) ([]byte, bool, error) {
 		if h.logRequests {
 			lines := strings.Split(string(data), "\r\n")
@@ -45,7 +45,7 @@ func (h *HTTPHandler) HandleClientData() mgate.HandleFunc {
 	}
 }
 
-func (h *HTTPHandler) HandleServerData() mgate.HandleFunc {
+func (h *HTTPHandler) ServerDataHandler() mgate.HandleFunc {
 	return func(ctx context.Context, data []byte, conn mgate.ConnectionInfo) ([]byte, bool, error) {
 		return data, true, nil
 	}

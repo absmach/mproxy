@@ -108,13 +108,13 @@ func (p *TCPProxy) handleConnection(clientConn net.Conn) {
 	// Client to Server
 	go func() {
 		defer wg.Done()
-		p.pipe(clientConn, serverConn, p.handler.HandleClientData(), connInfo)
+		p.pipe(clientConn, serverConn, p.handler.ClientDataHandler(), connInfo)
 	}()
 
 	// Server to Client
 	go func() {
 		defer wg.Done()
-		p.pipe(serverConn, clientConn, p.handler.HandleServerData(), connInfo)
+		p.pipe(serverConn, clientConn, p.handler.ServerDataHandler(), connInfo)
 	}()
 
 	wg.Wait()
@@ -162,5 +162,3 @@ func (p *TCPProxy) Stop() error {
 	p.wg.Wait()
 	return nil
 }
-
-type handleFunc func(context.Context, []byte, mgate.ConnectionInfo) ([]byte, bool, error)

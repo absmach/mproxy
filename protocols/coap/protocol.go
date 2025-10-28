@@ -30,7 +30,7 @@ func (h *CoAPHandler) Detect(data []byte) bool {
 	return version == 1
 }
 
-func (h *CoAPHandler) HandleClientData() mgate.HandleFunc {
+func (h *CoAPHandler) ClientDataHandler() mgate.HandleFunc {
 	return func(ctx context.Context, data []byte, conn mgate.ConnectionInfo) ([]byte, bool, error) {
 		if h.logMessages && len(data) >= 4 {
 			msgType := (data[0] >> 4) & 0x03
@@ -41,7 +41,7 @@ func (h *CoAPHandler) HandleClientData() mgate.HandleFunc {
 	}
 }
 
-func (h *CoAPHandler) HandleServerData() mgate.HandleFunc {
+func (h *CoAPHandler) ServerDataHandler() mgate.HandleFunc {
 	return func(ctx context.Context, data []byte, conn mgate.ConnectionInfo) ([]byte, bool, error) {
 		return data, true, nil
 	}

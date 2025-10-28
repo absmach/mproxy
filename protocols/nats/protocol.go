@@ -35,7 +35,7 @@ func (h *NATSHandler) Detect(data []byte) bool {
 		bytes.HasPrefix(data, []byte("PING"))
 }
 
-func (h *NATSHandler) HandleClientData() mgate.HandleFunc {
+func (h *NATSHandler) ClientDataHandler() mgate.HandleFunc {
 	return func(ctx context.Context, data []byte, conn mgate.ConnectionInfo) ([]byte, bool, error) {
 		if h.logOps {
 			h.logNATSOperation(data, conn.Client.Addr, "->")
@@ -44,7 +44,7 @@ func (h *NATSHandler) HandleClientData() mgate.HandleFunc {
 	}
 }
 
-func (h *NATSHandler) HandleServerData() mgate.HandleFunc {
+func (h *NATSHandler) ServerDataHandler() mgate.HandleFunc {
 	return func(ctx context.Context, data []byte, conn mgate.ConnectionInfo) ([]byte, bool, error) {
 		if h.logOps {
 			h.logNATSOperation(data, "Server", "<-")

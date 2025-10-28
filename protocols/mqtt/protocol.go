@@ -31,7 +31,7 @@ func (h *MQTTHandler) Detect(data []byte) bool {
 	return packetType == 1
 }
 
-func (h *MQTTHandler) HandleClientData() mgate.HandleFunc {
+func (h *MQTTHandler) ClientDataHandler() mgate.HandleFunc {
 	return func(ctx context.Context, data []byte, conn mgate.ConnectionInfo) ([]byte, bool, error) {
 		if h.logPackets && len(data) > 0 {
 			packetType := data[0] >> 4
@@ -49,7 +49,7 @@ func (h *MQTTHandler) HandleClientData() mgate.HandleFunc {
 	}
 }
 
-func (h *MQTTHandler) HandleServerData() mgate.HandleFunc {
+func (h *MQTTHandler) ServerDataHandler() mgate.HandleFunc {
 	return func(ctx context.Context, data []byte, conn mgate.ConnectionInfo) ([]byte, bool, error) {
 		return data, true, nil
 	}

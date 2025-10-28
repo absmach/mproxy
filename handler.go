@@ -7,13 +7,13 @@ type Handler interface {
 	// Name returns the protocol name.
 	Name() string
 
-	// HandleClientData processes data from client to server.
+	// ClientDataHandler processes data from client to server.
 	// Returns modified data and whether to continue proxying.
-	HandleClientData() HandleFunc
+	ClientDataHandler() HandleFunc
 
-	// HandleServerData processes data from server to client.
+	// ServerDataHandler processes data from server to client.
 	// Returns modified data and whether to continue proxying.
-	HandleServerData() HandleFunc
+	ServerDataHandler() HandleFunc
 
 	// OnConnect is called when a new connection is established.
 	OnConnect(ctx context.Context, conn ConnectionInfo) error
