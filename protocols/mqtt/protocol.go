@@ -56,7 +56,7 @@ func (h *MQTTHandler) OnConnect(ctx context.Context, conn mgate.ConnectionInfo) 
 	return nil
 }
 
-func (h *MQTTHandler) OnClose(ctx context.Context, conn mgate.ConnectionInfo) error {
+func (h *MQTTHandler) OnDisconnect(ctx context.Context, conn mgate.ConnectionInfo) error {
 	duration := time.Since(conn.StartTime)
 	log.Printf("[MQTT] Connection closed: %s (duration: %v)", conn.Client.Addr, duration)
 	return nil

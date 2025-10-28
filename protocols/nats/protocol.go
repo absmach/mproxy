@@ -111,7 +111,7 @@ func (h *NATSHandler) OnConnect(ctx context.Context, conn mgate.ConnectionInfo) 
 	return nil
 }
 
-func (h *NATSHandler) OnClose(ctx context.Context, conn mgate.ConnectionInfo) error {
+func (h *NATSHandler) OnDisconnect(ctx context.Context, conn mgate.ConnectionInfo) error {
 	duration := time.Since(conn.StartTime)
 	log.Printf("[NATS] Connection closed: %s (duration: %v)", conn.Client.Addr, duration)
 	return nil

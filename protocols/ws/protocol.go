@@ -29,7 +29,7 @@ func (h *WebSocketHandler) Detect(data []byte) bool {
 
 func (h *WebSocketHandler) HandleClientData(ctx context.Context, data []byte, conn mgate.ConnectionInfo) ([]byte, bool, error) {
 	if h.logFrames {
-		log.Printf("[WebSocket] %s -> Frame (%d bytes)", conn.ClientAddr, len(data))
+		log.Printf("[WebSocket] %s -> Frame (%d bytes)", conn.Client.Addr, len(data))
 	}
 	return data, true, nil
 }
@@ -39,12 +39,12 @@ func (h *WebSocketHandler) HandleServerData(ctx context.Context, data []byte, co
 }
 
 func (h *WebSocketHandler) OnConnect(ctx context.Context, conn mgate.ConnectionInfo) error {
-	log.Printf("[WebSocket] Connection established: %s -> %s", conn.ClientAddr, conn.ServerAddr)
+	log.Printf("[WebSocket] Connection established: %s -> %s", conn.Client.Addr, conn.Server.Addr)
 	return nil
 }
 
-func (h *WebSocketHandler) OnClose(ctx context.Context, conn mgate.ConnectionInfo) error {
+func (h *WebSocketHandler) OnDisconnect(ctx context.Context, conn mgate.ConnectionInfo) error {
 	duration := time.Since(conn.StartTime)
-	log.Printf("[WebSocket] Connection closed: %s (duration: %v)", conn.ClientAddr, duration)
+	log.Printf("[WebSocket] Connection closed: %s (duration: %v)", conn.Client.Addr, duration)
 	return nil
 }

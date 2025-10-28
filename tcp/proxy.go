@@ -99,7 +99,7 @@ func (p *TCPProxy) handleConnection(clientConn net.Conn) {
 		log.Printf("OnConnect error: %v", err)
 		return
 	}
-	defer p.handler.OnClose(p.ctx, connInfo)
+	defer p.handler.OnDisconnect(p.ctx, connInfo)
 
 	// Create pipes for bidirectional communication
 	var wg sync.WaitGroup

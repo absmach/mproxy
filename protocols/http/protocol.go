@@ -52,7 +52,7 @@ func (h *HTTPHandler) OnConnect(ctx context.Context, conn mgate.ConnectionInfo) 
 	return nil
 }
 
-func (h *HTTPHandler) OnClose(ctx context.Context, conn mgate.ConnectionInfo) error {
+func (h *HTTPHandler) OnDisconnect(ctx context.Context, conn mgate.ConnectionInfo) error {
 	duration := time.Since(conn.StartTime)
 	log.Printf("[HTTP] Connection closed: %s (duration: %v)", conn.Client.Addr, duration)
 	return nil

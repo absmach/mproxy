@@ -18,6 +18,6 @@ type Handler interface {
 	// OnConnect is called when a new connection is established.
 	OnConnect(ctx context.Context, conn ConnectionInfo) error
 
-	// OnClose is called when the connection is closed.
-	OnClose(ctx context.Context, conn ConnectionInfo) error
+	// OnDisconnect is called when the connection is closed.
+	OnDisconnect(ctx context.Context, conn ConnectionInfo) error
 }
