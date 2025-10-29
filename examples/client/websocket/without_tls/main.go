@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	brokerAddress = "ws://localhost:8083"
+	brokerAddress = "ws://localhost:8083/mgate-ws"
 	topic         = "test/topic"
 	payload       = "Hello mGate"
 )

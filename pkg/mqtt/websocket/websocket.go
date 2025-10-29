@@ -16,7 +16,6 @@ import (
 	"github.com/absmach/mgate"
 	"github.com/absmach/mgate/pkg/session"
 	mptls "github.com/absmach/mgate/pkg/tls"
-	"github.com/absmach/mgate/pkg/transport"
 	"github.com/gorilla/websocket"
 	"golang.org/x/sync/errgroup"
 )
@@ -53,13 +52,10 @@ var upgrader = websocket.Upgrader{
 }
 
 func (p Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if !strings.HasPrefix(r.URL.Path, transport.AddSuffixSlash(p.config.PathPrefix+p.config.TargetPath)) {
+	if !strings.HasPrefix(r.URL.Path, p.config.PathPrefix) {
 		http.NotFound(w, r)
 		return
 	}
-
-	r.URL.Path = strings.TrimPrefix(r.URL.Path, p.config.PathPrefix)
-
 	cconn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		p.logger.Error("Error upgrading connection", slog.Any("error", err))
@@ -80,7 +76,8 @@ func (p Proxy) pass(in *websocket.Conn) {
 	dialer := &websocket.Dialer{
 		Subprotocols: []string{"mqtt"},
 	}
-	target := fmt.Sprintf("%s://%s:%s", p.config.TargetProtocol, p.config.TargetHost, p.config.TargetPath)
+
+	target := fmt.Sprintf("%s://%s:%s%s", p.config.TargetProtocol, p.config.TargetHost, p.config.TargetPort, p.config.TargetPath)
 
 	srv, _, err := dialer.Dial(target, nil)
 	if err != nil {
@@ -122,7 +119,7 @@ func (p Proxy) Listen(ctx context.Context) error {
 
 	mux := http.NewServeMux()
 
-	mux.Handle(transport.AddSuffixSlash(p.config.PathPrefix), p)
+	mux.Handle(p.config.PathPrefix, p)
 	server.Handler = mux
 
 	g.Go(func() error {
