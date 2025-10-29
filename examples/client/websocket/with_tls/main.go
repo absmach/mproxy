@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	brokerAddress = "wss://localhost:8084"
+	brokerAddress = "wss://localhost:8084/mgate-ws"
 	topic         = "test/topic"
 	payload       = "Hello mGate"
 	certFile      = ""

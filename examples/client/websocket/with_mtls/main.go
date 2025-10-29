@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	brokerAddress = "wss://localhost:8085/mqtt"
+	brokerAddress = "wss://localhost:8085/mgate-ws"
 	topic         = "test/topic"
 	payload       = "Hello mGate"
 	certFile      = "ssl/certs/client.crt"
