@@ -143,7 +143,12 @@ func SecurityStatus[sc TLSConfig](s sc) string {
 		}
 		return ret
 	case *dtls.Config:
-		return "DTLS"
+		ret := "DTLS"
+
+		if c.ClientCAs != nil {
+			ret += " and " + toClientAuthString(c.ClientAuth)
+		}
+		return ret
 	default:
 		return "no TLS"
 	}
@@ -154,4 +159,21 @@ func loadCertFile(certFile string) ([]byte, error) {
 		return os.ReadFile(certFile)
 	}
 	return []byte{}, nil
+}
+
+func toClientAuthString(cat dtls.ClientAuthType) string {
+	switch cat {
+	case dtls.NoClientCert:
+		return "NoClientCert"
+	case dtls.RequestClientCert:
+		return "RequestClientCert"
+	case dtls.RequireAnyClientCert:
+		return "RequestAnyClientCert"
+	case dtls.VerifyClientCertIfGiven:
+		return "VerifyClientCertIfGiven"
+	case dtls.RequireAndVerifyClientCert:
+		return "RequireAndVerifyClientCert"
+	default:
+		return ""
+	}
 }
