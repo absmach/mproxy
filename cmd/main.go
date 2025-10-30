@@ -38,6 +38,7 @@ const (
 
 	coapWithoutDTLS = "MGATE_COAP_WITHOUT_DTLS_"
 	coapWithDTLS    = "MGATE_COAP_WITH_DTLS_"
+	coapWithmDTLS   = "MGATE_COAP_WITH_MDTLS_"
 )
 
 func main() {
@@ -198,6 +199,18 @@ func main() {
 	coapDTLSProxy := coap.NewProxy(coapDTLSConfig, handler, logger)
 	g.Go(func() error {
 		return coapDTLSProxy.Listen(ctx)
+	})
+
+	// mGate server Configuration for CoAP with mDTLS
+	coapmDTLSConfig, err := mgate.NewConfig(env.Options{Prefix: coapWithmDTLS})
+	if err != nil {
+		panic(err)
+	}
+
+	// mGate server for CoAP with mDTLS
+	coapmDTLSProxy := coap.NewProxy(coapmDTLSConfig, handler, logger)
+	g.Go(func() error {
+		return coapmDTLSProxy.Listen(ctx)
 	})
 
 	g.Go(func() error {
