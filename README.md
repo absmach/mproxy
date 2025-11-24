@@ -1,21 +1,21 @@
-# mGate
+# mProxy
 
 ![Go Report Card][grc]
 [![License][LIC-BADGE]][LIC]
 
-mGate is a lightweight, scalable, and customizable IoT API gateway designed to support seamless communication across multiple protocols. It enables real-time packet manipulation, features pluggable authentication mechanisms, and offers observability for monitoring and troubleshooting. Built for flexibility, mGate can be deployed as a sidecar or standalone service and can also function as a library for easy integration into applications.
+mProxy is a lightweight, scalable, and customizable IoT API gateway designed to support seamless communication across multiple protocols. It enables real-time packet manipulation, features pluggable authentication mechanisms, and offers observability for monitoring and troubleshooting. Built for flexibility, mProxy can be deployed as a sidecar or standalone service and can also function as a library for easy integration into applications.
 
-The extensible nature of mGate allows developers to customize it to fit various IoT ecosystems, ensuring optimal performance and security.
+The extensible nature of mProxy allows developers to customize it to fit various IoT ecosystems, ensuring optimal performance and security.
 
 ## Key Features
 
-Some of the key features of mGate include multi-protocol support, real-time packet manipulation, pluggable authentication, observability, and scalability, all while being lightweight, customizable, and easily deployable as a sidecar or standalone service.
+Some of the key features of mProxy include multi-protocol support, real-time packet manipulation, pluggable authentication, observability, and scalability, all while being lightweight, customizable, and easily deployable as a sidecar or standalone service.
 
 <p align="center"><img src="docs/img/mgate-features.png"></p>
 
 #### Multi-Protocol Support
 
-mGate is built to interface with a wide range of IoT protocols, including:
+mProxy is built to interface with a wide range of IoT protocols, including:
 
 - MQTT
 - CoAP
@@ -41,7 +41,7 @@ Offers logging and tracing to facilitate troubleshooting and optimization and op
 
 ### Scalable Architecture
 
-mGate is designed to scale horizontally, ensuring it can handle high-throughput environments.
+mProxy is designed to scale horizontally, ensuring it can handle high-throughput environments.
 
 ### Pluggable and Extensible
 
@@ -73,20 +73,20 @@ make
 
 ## Architecture
 
-mGate starts protocol servers, offering connections to devices. Upon the connection, it establishes a session with a remote protocol server. It then pipes packets from devices to the protocol server, inspecting or modifying them as they flow through the proxy.
+mProxy starts protocol servers, offering connections to devices. Upon the connection, it establishes a session with a remote protocol server. It then pipes packets from devices to the protocol server, inspecting or modifying them as they flow through the proxy.
 
 Here is the flow in more detail:
 
-- The Device connects to mGate's server
-- mGate accepts the inbound (IN) connection and establishes a new session with the remote server (e.g. it dials out to the MQTT broker only once it accepts a new connection from a device. This way one device-mGate connection corresponds to one mGate-MQTT broker connection.)
-- mGate then spawns 2 goroutines: one that will read incoming packets from the device-mGate socket (INBOUND or UPLINK), inspect them (calling event handlers) and write them to mGate-server socket (forwarding them towards the server) and other that will be reading server responses from mGate-server socket and writing them towards device, in device-mGate socket (OUTBOUND or DOWNLINK).
+- The Device connects to mProxy's server
+- mProxy accepts the inbound (IN) connection and establishes a new session with the remote server (e.g. it dials out to the MQTT broker only once it accepts a new connection from a device. This way one device-mProxy connection corresponds to one mProxy-MQTT broker connection.)
+- mProxy then spawns 2 goroutines: one that will read incoming packets from the device-mProxy socket (INBOUND or UPLINK), inspect them (calling event handlers) and write them to mProxy-server socket (forwarding them towards the server) and other that will be reading server responses from mProxy-server socket and writing them towards device, in device-mProxy socket (OUTBOUND or DOWNLINK).
 
 <p align="center"><img src="docs/img/mgate.png"></p>
 
-mGate can parse and understand protocol packages, and upon their detection, it calls external event handlers. Event handlers should implement the following interface defined in [pkg/mqtt/events.go](pkg/mqtt/events.go):
+mProxy can parse and understand protocol packages, and upon their detection, it calls external event handlers. Event handlers should implement the following interface defined in [pkg/mqtt/events.go](pkg/mqtt/events.go):
 
 ```go
-// Handler is an interface for mGate hooks
+// Handler is an interface for mProxy hooks
 type Handler interface {
     // Authorization on client `CONNECT`
     // Each of the params are passed by reference, so that it can be changed
@@ -121,15 +121,15 @@ The Handler interface is inspired by MQTT protocol control packets; if the under
 
 ## Deployment
 
-To explain the deployment process, an MQTT broker will be used as an example, given that MQTT is one of the most widely used and feature-rich protocols. mGate does not do load balancing - just pure and simple proxying with TLS termination. This is why it should be deployed right in front of its corresponding MQTT broker instance: one mGate for each MQTT broker instance in the MQTT cluster.
+To explain the deployment process, an MQTT broker will be used as an example, given that MQTT is one of the most widely used and feature-rich protocols. mProxy does not do load balancing - just pure and simple proxying with TLS termination. This is why it should be deployed right in front of its corresponding MQTT broker instance: one mProxy for each MQTT broker instance in the MQTT cluster.
 
-Usually, this is done by deploying mGate as a side-car in the same Kubernetes pod alongside with MQTT broker instance (MQTT cluster node).
+Usually, this is done by deploying mProxy as a side-car in the same Kubernetes pod alongside with MQTT broker instance (MQTT cluster node).
 
 <p align="center"><img src="docs/img/mgate-cluster.png"></p>
 
 LB tasks can be offloaded to a standard ingress proxy - for example, NginX.
 
-## Example Setup & Testing of mGate
+## Example Setup & Testing of mProxy
 
 ### Requirements
 
@@ -138,9 +138,9 @@ LB tasks can be offloaded to a standard ingress proxy - for example, NginX.
 - Mosquitto Publisher and Subscriber Client
 - coap-client or Magistrala coap-cli
 
-### Example Setup of mGate
+### Example Setup of mProxy
 
-mGate is used to proxy requests to a backend server. For the example setup, we will use Mosquitto server as the backend for MQTT, and MQTT over Websocket and an HTTP echo server for HTTP.
+mProxy is used to proxy requests to a backend server. For the example setup, we will use Mosquitto server as the backend for MQTT, and MQTT over Websocket and an HTTP echo server for HTTP.
 
 1. Start the Mosquitto MQTT Server with the following command. This bash script will initiate the Mosquitto MQTT server with WebSocket support. The Mosquitto Server will listen for MQTT connections on port 1883 and MQTT over WebSocket connections on port 8000.
 
@@ -160,106 +160,106 @@ mGate is used to proxy requests to a backend server. For the example setup, we w
     go run examples/ocsp-crl-responder/main.go
    ```
 
-4. Start the example mGate servers for various protocols:
+4. Start the example mProxy servers for various protocols:
 
    ```bash
    go run cmd/main.go
    ```
 
-   The `cmd/main.go` Go program initializes mGate servers for the following protocols:
+   The `cmd/main.go` Go program initializes mProxy servers for the following protocols:
 
-   - mGate server for `MQTT` protocol `without TLS` on port `1884`
-   - mGate server for `MQTT` protocol `with TLS` on port `8883`
-   - mGate server for `MQTT` protocol `with mTLS` on port `8884`
-   - mGate server for `MQTT over WebSocket without TLS` on port `8083`
-   - mGate server for `MQTT over WebSocket with TLS` on port `8084`
-   - mGate server for `MQTT over WebSocket with mTLS` on port `8085` with prefix path `/mqtt`
-   - mGate server for `HTTP protocol without TLS` on port `8086` with prefix path `/messages`
-   - mGate server for `HTTP protocol with TLS` on port `8087` with prefix path `/messages`
-   - mGate server for `HTTP protocol with mTLS` on port `8088` with prefix path `/messages`
-   - mGate server for `CoAP protocol without DTLS` on port `5682`
-   - mGate server for `CoAP protocol with DTLS` on port `5684`
+   - mProxy server for `MQTT` protocol `without TLS` on port `1884`
+   - mProxy server for `MQTT` protocol `with TLS` on port `8883`
+   - mProxy server for `MQTT` protocol `with mTLS` on port `8884`
+   - mProxy server for `MQTT over WebSocket without TLS` on port `8083`
+   - mProxy server for `MQTT over WebSocket with TLS` on port `8084`
+   - mProxy server for `MQTT over WebSocket with mTLS` on port `8085` with prefix path `/mqtt`
+   - mProxy server for `HTTP protocol without TLS` on port `8086` with prefix path `/messages`
+   - mProxy server for `HTTP protocol with TLS` on port `8087` with prefix path `/messages`
+   - mProxy server for `HTTP protocol with mTLS` on port `8088` with prefix path `/messages`
+   - mProxy server for `CoAP protocol without DTLS` on port `5682`
+   - mProxy server for `CoAP protocol with DTLS` on port `5684`
 
-### Example testing of mGate
+### Example testing of mProxy
 
-#### Test mGate server for MQTT protocols
+#### Test mProxy server for MQTT protocols
 
-Bash scripts available in `examples/client/mqtt` directory help to test the mGate servers running for MQTT protocols
+Bash scripts available in `examples/client/mqtt` directory help to test the mProxy servers running for MQTT protocols
 
-- Script to test mGate server running at port 1884 for MQTT without TLS
+- Script to test mProxy server running at port 1884 for MQTT without TLS
 
   ```bash
   examples/client/mqtt/without_tls.sh
   ```
 
-- Script to test mGate server running at port 8883 for MQTT with TLS
+- Script to test mProxy server running at port 8883 for MQTT with TLS
 
   ```bash
   examples/client/mqtt/with_tls.sh
   ```
 
-- Script to test mGate server running at port 8884 for MQTT with mTLS
+- Script to test mProxy server running at port 8884 for MQTT with mTLS
 
   ```bash
   examples/client/mqtt/with_mtls.sh
   ```
 
-#### Test mGate server for MQTT over WebSocket protocols
+#### Test mProxy server for MQTT over WebSocket protocols
 
-Go programs available in `examples/client/websocket/*/main.go` directory helps to test the mGate servers running for MQTT over WebSocket protocols
+Go programs available in `examples/client/websocket/*/main.go` directory helps to test the mProxy servers running for MQTT over WebSocket protocols
 
-- Go program to test mGate server running at port 8083 for MQTT over WebSocket without TLS
+- Go program to test mProxy server running at port 8083 for MQTT over WebSocket without TLS
 
   ```bash
   go run examples/client/websocket/without_tls/main.go
   ```
 
-- Go program to test mGate server running at port 8084 for MQTT over WebSocket with TLS
+- Go program to test mProxy server running at port 8084 for MQTT over WebSocket with TLS
 
   ```bash
   go run examples/client/websocket/with_tls/main.go
   ```
 
-- Go program to test mGate server running at port 8085 for MQTT over Websocket with mTLS
+- Go program to test mProxy server running at port 8085 for MQTT over Websocket with mTLS
 
   ```bash
   go run examples/client/websocket/with_mtls/main.go
   ```
 
-#### Test mGate server for HTTP protocols
+#### Test mProxy server for HTTP protocols
 
-Bash scripts available in `examples/client/http` directory help to test the mGate servers running for HTTP protocols
+Bash scripts available in `examples/client/http` directory help to test the mProxy servers running for HTTP protocols
 
-- Script to test mGate server running at port 8086 for HTTP without TLS
+- Script to test mProxy server running at port 8086 for HTTP without TLS
 
   ```bash
   examples/client/http/without_tls.sh
   ```
 
-- Script to test mGate server running at port 8087 for HTTP with TLS
+- Script to test mProxy server running at port 8087 for HTTP with TLS
 
   ```bash
   examples/client/http/with_tls.sh
   ```
 
-- Script to test mGate server running at port 8088 for HTTP with mTLS
+- Script to test mProxy server running at port 8088 for HTTP with mTLS
 
   ```bash
   examples/client/http/with_mtls.sh
   ```
 
-### Test mGate server for CoAP protocols
+### Test mProxy server for CoAP protocols
 
-Bash scripts available in `example/client/coap` directory help to test the mGate servers running for CoAP protocols. You will require to have either the [coap-client](https://libcoap.net/doc/reference/4.3.1/man_coap-client.html) or the [Magistrala coap-cli](https://github.com/absmach/coap-cli).
+Bash scripts available in `example/client/coap` directory help to test the mProxy servers running for CoAP protocols. You will require to have either the [coap-client](https://libcoap.net/doc/reference/4.3.1/man_coap-client.html) or the [Magistrala coap-cli](https://github.com/absmach/coap-cli).
 The script can be used alongside the simple go-coap server provided at `example/server/coap`.
 
-- Script to test mGate server running at 5682 for CoAP without DTLS
+- Script to test mProxy server running at 5682 for CoAP without DTLS
 
   ```bash
     examples/client/coap/without_dtls.sh
   ```
 
-- Script to test mGate server running at 5684 for CoAP with DTLS
+- Script to test mProxy server running at 5684 for CoAP with DTLS
 
   ```bash
     examples/client/coap/with_dtls.sh
@@ -271,72 +271,72 @@ The service is configured using the environment variables presented in the follo
 
 | Variable                                          | Description                                                                                                                          | Default                      |
 | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------- |
-| MGATE_MQTT_WITHOUT_TLS_ADDRESS                    | MQTT without TLS inbound (IN) connection listening address                                                                           | :1884                        |
-| MGATE_MQTT_WITHOUT_TLS_TARGET                     | MQTT without TLS outbound (OUT) connection address                                                                                   | localhost:1883               |
-| MGATE_MQTT_WITH_TLS_ADDRESS                       | MQTT with TLS inbound (IN) connection listening address                                                                              | :8883                        |
-| MGATE_MQTT_WITH_TLS_TARGET                        | MQTT with TLS outbound (OUT) connection address                                                                                      | localhost:1883               |
-| MGATE_MQTT_WITH_TLS_CERT_FILE                     | MQTT with TLS certificate file path                                                                                                  | ssl/certs/server.crt         |
-| MGATE_MQTT_WITH_TLS_KEY_FILE                      | MQTT with TLS key file path                                                                                                          | ssl/certs/server.key         |
-| MGATE_MQTT_WITH_TLS_SERVER_CA_FILE                | MQTT with TLS server CA file path                                                                                                    | ssl/certs/ca.crt             |
-| MGATE_MQTT_WITH_MTLS_ADDRESS                      | MQTT with mTLS inbound (IN) connection listening address                                                                             | :8884                        |
-| MGATE_MQTT_WITH_MTLS_TARGET                       | MQTT with mTLS outbound (OUT) connection address                                                                                     | localhost:1883               |
-| MGATE_MQTT_WITH_MTLS_CERT_FILE                    | MQTT with mTLS certificate file path                                                                                                 | ssl/certs/server.crt         |
-| MGATE_MQTT_WITH_MTLS_KEY_FILE                     | MQTT with mTLS key file path                                                                                                         | ssl/certs/server.key         |
-| MGATE_MQTT_WITH_MTLS_SERVER_CA_FILE               | MQTT with mTLS server CA file path                                                                                                   | ssl/certs/ca.crt             |
-| MGATE_MQTT_WITH_MTLS_CLIENT_CA_FILE               | MQTT with mTLS client CA file path                                                                                                   | ssl/certs/ca.crt             |
-| MGATE_MQTT_WITH_MTLS_CERT_VERIFICATION_METHODS    | MQTT with mTLS certificate verification methods, if no value or unset then mGate server will not do client validation                | ocsp                         |
-| MGATE_MQTT_WITH_MTLS_OCSP_RESPONDER_URL           | MQTT with mTLS OCSP responder URL, it is used if OCSP responder URL is not available in client certificate AIA                       | <http://localhost:8080/ocsp> |
-| MGATE_MQTT_WS_WITHOUT_TLS_ADDRESS                 | MQTT over Websocket without TLS inbound (IN) connection listening address                                                            | :8083                        |
-| MGATE_MQTT_WS_WITHOUT_TLS_TARGET                  | MQTT over Websocket without TLS outbound (OUT) connection address                                                                    | ws://localhost:8000/         |
-| MGATE_MQTT_WS_WITH_TLS_ADDRESS                    | MQTT over Websocket with TLS inbound (IN) connection listening address                                                               | :8084                        |
-| MGATE_MQTT_WS_WITH_TLS_TARGET                     | MQTT over Websocket with TLS outbound (OUT) connection address                                                                       | ws://localhost:8000/         |
-| MGATE_MQTT_WS_WITH_TLS_CERT_FILE                  | MQTT over Websocket with TLS certificate file path                                                                                   | ssl/certs/server.crt         |
-| MGATE_MQTT_WS_WITH_TLS_KEY_FILE                   | MQTT over Websocket with TLS key file path                                                                                           | ssl/certs/server.key         |
-| MGATE_MQTT_WS_WITH_TLS_SERVER_CA_FILE             | MQTT over Websocket with TLS server CA file path                                                                                     | ssl/certs/ca.crt             |
-| MGATE_MQTT_WS_WITH_MTLS_ADDRESS                   | MQTT over Websocket with mTLS inbound (IN) connection listening address                                                              | :8085                        |
-| MGATE_MQTT_WS_WITH_MTLS_PATH_PREFIX               | MQTT over Websocket with mTLS inbound (IN) connection path                                                                           | /mqtt                        |
-| MGATE_MQTT_WS_WITH_MTLS_TARGET                    | MQTT over Websocket with mTLS outbound (OUT) connection address                                                                      | ws://localhost:8000/         |
-| MGATE_MQTT_WS_WITH_MTLS_CERT_FILE                 | MQTT over Websocket with mTLS certificate file path                                                                                  | ssl/certs/server.crt         |
-| MGATE_MQTT_WS_WITH_MTLS_KEY_FILE                  | MQTT over Websocket with mTLS key file path                                                                                          | ssl/certs/server.key         |
-| MGATE_MQTT_WS_WITH_MTLS_SERVER_CA_FILE            | MQTT over Websocket with mTLS server CA file path                                                                                    | ssl/certs/ca.crt             |
-| MGATE_MQTT_WS_WITH_MTLS_CLIENT_CA_FILE            | MQTT over Websocket with mTLS client CA file path                                                                                    | ssl/certs/ca.crt             |
-| MGATE_MQTT_WS_WITH_MTLS_CERT_VERIFICATION_METHODS | MQTT over Websocket with mTLS certificate verification methods, if no value or unset then mGate server will not do client validation | ocsp                         |
-| MGATE_MQTT_WS_WITH_MTLS_OCSP_RESPONDER_URL        | MQTT over Websocket with mTLS OCSP responder URL, it is used if OCSP responder URL is not available in client certificate AIA        | <http://localhost:8080/ocsp> |
-| MGATE_HTTP_WITHOUT_TLS_ADDRESS                    | HTTP without TLS inbound (IN) connection listening address                                                                           | :8086                        |
-| MGATE_HTTP_WITHOUT_TLS_PATH_PREFIX                | HTTP without TLS inbound (IN) connection path                                                                                        | /messages                    |
-| MGATE_HTTP_WITHOUT_TLS_TARGET                     | HTTP without TLS outbound (OUT) connection address                                                                                   | <http://localhost:8888/>     |
-| MGATE_HTTP_WITH_TLS_ADDRESS                       | HTTP with TLS inbound (IN) connection listening address                                                                              | :8087                        |
-| MGATE_HTTP_WITH_TLS_PATH_PREFIX                   | HTTP with TLS inbound (IN) connection path                                                                                           | /messages                    |
-| MGATE_HTTP_WITH_TLS_TARGET                        | HTTP with TLS outbound (OUT) connection address                                                                                      | <http://localhost:8888/>     |
-| MGATE_HTTP_WITH_TLS_CERT_FILE                     | HTTP with TLS certificate file path                                                                                                  | ssl/certs/server.crt         |
-| MGATE_HTTP_WITH_TLS_KEY_FILE                      | HTTP with TLS key file path                                                                                                          | ssl/certs/server.key         |
-| MGATE_HTTP_WITH_TLS_SERVER_CA_FILE                | HTTP with TLS server CA file path                                                                                                    | ssl/certs/ca.crt             |
-| MGATE_HTTP_WITH_MTLS_ADDRESS                      | HTTP with mTLS inbound (IN) connection listening address                                                                             | :8088                        |
-| MGATE_HTTP_WITH_MTLS_PATH_PREFIX                  | HTTP with mTLS inbound (IN) connection path                                                                                          | /messages                    |
-| MGATE_HTTP_WITH_MTLS_TARGET                       | HTTP with mTLS outbound (OUT) connection address                                                                                     | <http://localhost:8888/>     |
-| MGATE_HTTP_WITH_MTLS_CERT_FILE                    | HTTP with mTLS certificate file path                                                                                                 | ssl/certs/server.crt         |
-| MGATE_HTTP_WITH_MTLS_KEY_FILE                     | HTTP with mTLS key file path                                                                                                         | ssl/certs/server.key         |
-| MGATE_HTTP_WITH_MTLS_SERVER_CA_FILE               | HTTP with mTLS server CA file path                                                                                                   | ssl/certs/ca.crt             |
-| MGATE_HTTP_WITH_MTLS_CLIENT_CA_FILE               | HTTP with mTLS client CA file path                                                                                                   | ssl/certs/ca.crt             |
-| MGATE_HTTP_WITH_MTLS_CERT_VERIFICATION_METHODS    | HTTP with mTLS certificate verification methods, if no value or unset then mGate server will not do client validation                | ocsp                         |
-| MGATE_HTTP_WITH_MTLS_OCSP_RESPONDER_URL           | HTTP with mTLS OCSP responder URL, it is used if OCSP responder URL is not available in client certificate AIA                       | <http://localhost:8080/ocsp> |
-| MGATE_COAP_WITHOUT_DTLS_HOST                      | CoAP without DTLS inbound (IN) connection listening host                                                                             | localhost                    |
-| MGATE_COAP_WITHOUT_DTLS_PORT                      | CoAP without DTLS inbound (IN) connection listening port                                                                             | 5682                         |
-| MGATE_COAP_WITHOUT_DTLS_TARGET_HOST               | CoAP without DTLS outbound (OUT) connection listening host                                                                           | localhost                    |
-| MGATE_COAP_WITHOUT_DTLS_TARGET_PORT               | CoAP without DTLS outbound (OUT) connection listening port                                                                           | 5683                         |
-| MGATE_COAP_WITH_DTLS_HOST                         | CoAP with DTLS inbound (IN) connection listening host                                                                                | localhost                    |
-| MGATE_COAP_WITH_DTLS_PORT                         | CoAP with DTLS inbound (IN) connection listening port                                                                                | 5684                         |
-| MGATE_COAP_WITH_DTLS_TARGET_HOST                  | CoAP with DTLS outbound (OUT) connection listening host                                                                              | localhost                    |
-| MGATE_COAP_WITH_DTLS_TARGET_PORT                  | CoAP with DTLS outbound (OUT) connection listening port                                                                              | 5683                         |
-| MGATE_COAP_WITH_DTLS_CERT_FILE                    | CoAP with DTLS certificate file path                                                                                                 | ssl/certs/server.crt         |
-| MGATE_COAP_WITH_DTLS_KEY_FILE                     | CoAP with DTLS key file path                                                                                                         | ssl/certs/server.key         |
-| MGATE_COAP_WITH_DTLS_SERVER_CA_FILE               | CoAP with DTLS server CA file path                                                                                                   | ssl/certs/ca.crt             |
+| MPROXY_MQTT_WITHOUT_TLS_ADDRESS                    | MQTT without TLS inbound (IN) connection listening address                                                                           | :1884                        |
+| MPROXY_MQTT_WITHOUT_TLS_TARGET                     | MQTT without TLS outbound (OUT) connection address                                                                                   | localhost:1883               |
+| MPROXY_MQTT_WITH_TLS_ADDRESS                       | MQTT with TLS inbound (IN) connection listening address                                                                              | :8883                        |
+| MPROXY_MQTT_WITH_TLS_TARGET                        | MQTT with TLS outbound (OUT) connection address                                                                                      | localhost:1883               |
+| MPROXY_MQTT_WITH_TLS_CERT_FILE                     | MQTT with TLS certificate file path                                                                                                  | ssl/certs/server.crt         |
+| MPROXY_MQTT_WITH_TLS_KEY_FILE                      | MQTT with TLS key file path                                                                                                          | ssl/certs/server.key         |
+| MPROXY_MQTT_WITH_TLS_SERVER_CA_FILE                | MQTT with TLS server CA file path                                                                                                    | ssl/certs/ca.crt             |
+| MPROXY_MQTT_WITH_MTLS_ADDRESS                      | MQTT with mTLS inbound (IN) connection listening address                                                                             | :8884                        |
+| MPROXY_MQTT_WITH_MTLS_TARGET                       | MQTT with mTLS outbound (OUT) connection address                                                                                     | localhost:1883               |
+| MPROXY_MQTT_WITH_MTLS_CERT_FILE                    | MQTT with mTLS certificate file path                                                                                                 | ssl/certs/server.crt         |
+| MPROXY_MQTT_WITH_MTLS_KEY_FILE                     | MQTT with mTLS key file path                                                                                                         | ssl/certs/server.key         |
+| MPROXY_MQTT_WITH_MTLS_SERVER_CA_FILE               | MQTT with mTLS server CA file path                                                                                                   | ssl/certs/ca.crt             |
+| MPROXY_MQTT_WITH_MTLS_CLIENT_CA_FILE               | MQTT with mTLS client CA file path                                                                                                   | ssl/certs/ca.crt             |
+| MPROXY_MQTT_WITH_MTLS_CERT_VERIFICATION_METHODS    | MQTT with mTLS certificate verification methods, if no value or unset then mProxy server will not do client validation                | ocsp                         |
+| MPROXY_MQTT_WITH_MTLS_OCSP_RESPONDER_URL           | MQTT with mTLS OCSP responder URL, it is used if OCSP responder URL is not available in client certificate AIA                       | <http://localhost:8080/ocsp> |
+| MPROXY_MQTT_WS_WITHOUT_TLS_ADDRESS                 | MQTT over Websocket without TLS inbound (IN) connection listening address                                                            | :8083                        |
+| MPROXY_MQTT_WS_WITHOUT_TLS_TARGET                  | MQTT over Websocket without TLS outbound (OUT) connection address                                                                    | ws://localhost:8000/         |
+| MPROXY_MQTT_WS_WITH_TLS_ADDRESS                    | MQTT over Websocket with TLS inbound (IN) connection listening address                                                               | :8084                        |
+| MPROXY_MQTT_WS_WITH_TLS_TARGET                     | MQTT over Websocket with TLS outbound (OUT) connection address                                                                       | ws://localhost:8000/         |
+| MPROXY_MQTT_WS_WITH_TLS_CERT_FILE                  | MQTT over Websocket with TLS certificate file path                                                                                   | ssl/certs/server.crt         |
+| MPROXY_MQTT_WS_WITH_TLS_KEY_FILE                   | MQTT over Websocket with TLS key file path                                                                                           | ssl/certs/server.key         |
+| MPROXY_MQTT_WS_WITH_TLS_SERVER_CA_FILE             | MQTT over Websocket with TLS server CA file path                                                                                     | ssl/certs/ca.crt             |
+| MPROXY_MQTT_WS_WITH_MTLS_ADDRESS                   | MQTT over Websocket with mTLS inbound (IN) connection listening address                                                              | :8085                        |
+| MPROXY_MQTT_WS_WITH_MTLS_PATH_PREFIX               | MQTT over Websocket with mTLS inbound (IN) connection path                                                                           | /mqtt                        |
+| MPROXY_MQTT_WS_WITH_MTLS_TARGET                    | MQTT over Websocket with mTLS outbound (OUT) connection address                                                                      | ws://localhost:8000/         |
+| MPROXY_MQTT_WS_WITH_MTLS_CERT_FILE                 | MQTT over Websocket with mTLS certificate file path                                                                                  | ssl/certs/server.crt         |
+| MPROXY_MQTT_WS_WITH_MTLS_KEY_FILE                  | MQTT over Websocket with mTLS key file path                                                                                          | ssl/certs/server.key         |
+| MPROXY_MQTT_WS_WITH_MTLS_SERVER_CA_FILE            | MQTT over Websocket with mTLS server CA file path                                                                                    | ssl/certs/ca.crt             |
+| MPROXY_MQTT_WS_WITH_MTLS_CLIENT_CA_FILE            | MQTT over Websocket with mTLS client CA file path                                                                                    | ssl/certs/ca.crt             |
+| MPROXY_MQTT_WS_WITH_MTLS_CERT_VERIFICATION_METHODS | MQTT over Websocket with mTLS certificate verification methods, if no value or unset then mProxy server will not do client validation | ocsp                         |
+| MPROXY_MQTT_WS_WITH_MTLS_OCSP_RESPONDER_URL        | MQTT over Websocket with mTLS OCSP responder URL, it is used if OCSP responder URL is not available in client certificate AIA        | <http://localhost:8080/ocsp> |
+| MPROXY_HTTP_WITHOUT_TLS_ADDRESS                    | HTTP without TLS inbound (IN) connection listening address                                                                           | :8086                        |
+| MPROXY_HTTP_WITHOUT_TLS_PATH_PREFIX                | HTTP without TLS inbound (IN) connection path                                                                                        | /messages                    |
+| MPROXY_HTTP_WITHOUT_TLS_TARGET                     | HTTP without TLS outbound (OUT) connection address                                                                                   | <http://localhost:8888/>     |
+| MPROXY_HTTP_WITH_TLS_ADDRESS                       | HTTP with TLS inbound (IN) connection listening address                                                                              | :8087                        |
+| MPROXY_HTTP_WITH_TLS_PATH_PREFIX                   | HTTP with TLS inbound (IN) connection path                                                                                           | /messages                    |
+| MPROXY_HTTP_WITH_TLS_TARGET                        | HTTP with TLS outbound (OUT) connection address                                                                                      | <http://localhost:8888/>     |
+| MPROXY_HTTP_WITH_TLS_CERT_FILE                     | HTTP with TLS certificate file path                                                                                                  | ssl/certs/server.crt         |
+| MPROXY_HTTP_WITH_TLS_KEY_FILE                      | HTTP with TLS key file path                                                                                                          | ssl/certs/server.key         |
+| MPROXY_HTTP_WITH_TLS_SERVER_CA_FILE                | HTTP with TLS server CA file path                                                                                                    | ssl/certs/ca.crt             |
+| MPROXY_HTTP_WITH_MTLS_ADDRESS                      | HTTP with mTLS inbound (IN) connection listening address                                                                             | :8088                        |
+| MPROXY_HTTP_WITH_MTLS_PATH_PREFIX                  | HTTP with mTLS inbound (IN) connection path                                                                                          | /messages                    |
+| MPROXY_HTTP_WITH_MTLS_TARGET                       | HTTP with mTLS outbound (OUT) connection address                                                                                     | <http://localhost:8888/>     |
+| MPROXY_HTTP_WITH_MTLS_CERT_FILE                    | HTTP with mTLS certificate file path                                                                                                 | ssl/certs/server.crt         |
+| MPROXY_HTTP_WITH_MTLS_KEY_FILE                     | HTTP with mTLS key file path                                                                                                         | ssl/certs/server.key         |
+| MPROXY_HTTP_WITH_MTLS_SERVER_CA_FILE               | HTTP with mTLS server CA file path                                                                                                   | ssl/certs/ca.crt             |
+| MPROXY_HTTP_WITH_MTLS_CLIENT_CA_FILE               | HTTP with mTLS client CA file path                                                                                                   | ssl/certs/ca.crt             |
+| MPROXY_HTTP_WITH_MTLS_CERT_VERIFICATION_METHODS    | HTTP with mTLS certificate verification methods, if no value or unset then mProxy server will not do client validation                | ocsp                         |
+| MPROXY_HTTP_WITH_MTLS_OCSP_RESPONDER_URL           | HTTP with mTLS OCSP responder URL, it is used if OCSP responder URL is not available in client certificate AIA                       | <http://localhost:8080/ocsp> |
+| MPROXY_COAP_WITHOUT_DTLS_HOST                      | CoAP without DTLS inbound (IN) connection listening host                                                                             | localhost                    |
+| MPROXY_COAP_WITHOUT_DTLS_PORT                      | CoAP without DTLS inbound (IN) connection listening port                                                                             | 5682                         |
+| MPROXY_COAP_WITHOUT_DTLS_TARGET_HOST               | CoAP without DTLS outbound (OUT) connection listening host                                                                           | localhost                    |
+| MPROXY_COAP_WITHOUT_DTLS_TARGET_PORT               | CoAP without DTLS outbound (OUT) connection listening port                                                                           | 5683                         |
+| MPROXY_COAP_WITH_DTLS_HOST                         | CoAP with DTLS inbound (IN) connection listening host                                                                                | localhost                    |
+| MPROXY_COAP_WITH_DTLS_PORT                         | CoAP with DTLS inbound (IN) connection listening port                                                                                | 5684                         |
+| MPROXY_COAP_WITH_DTLS_TARGET_HOST                  | CoAP with DTLS outbound (OUT) connection listening host                                                                              | localhost                    |
+| MPROXY_COAP_WITH_DTLS_TARGET_PORT                  | CoAP with DTLS outbound (OUT) connection listening port                                                                              | 5683                         |
+| MPROXY_COAP_WITH_DTLS_CERT_FILE                    | CoAP with DTLS certificate file path                                                                                                 | ssl/certs/server.crt         |
+| MPROXY_COAP_WITH_DTLS_KEY_FILE                     | CoAP with DTLS key file path                                                                                                         | ssl/certs/server.key         |
+| MPROXY_COAP_WITH_DTLS_SERVER_CA_FILE               | CoAP with DTLS server CA file path                                                                                                   | ssl/certs/ca.crt             |
 
-## mGate Configuration Environment Variables
+## mProxy Configuration Environment Variables
 
 ### Server Configuration Environment Variables
 
-- `ADDRESS` : Specifies the address at which mGate will listen. Supports MQTT, MQTT over WebSocket, and HTTP proxy connections.
+- `ADDRESS` : Specifies the address at which mProxy will listen. Supports MQTT, MQTT over WebSocket, and HTTP proxy connections.
 - `PATH_PREFIX` : Defines the path prefix when listening for MQTT over WebSocket or HTTP connections.
 - `TARGET` : Specifies the address of the target server, including any prefix path if available. The target server can be an MQTT server, MQTT over WebSocket, or an HTTP server.
 
@@ -365,10 +365,10 @@ The service is configured using the environment variables presented in the follo
 
 ## Adding Prefix to Environmental Variables
 
-mGate relies on the [caarlos0/env](https://github.com/caarlos0/env) package to load environmental variables into its [configuration](https://github.com/arvindh123/mgate/blob/main/config.go#L15).
+mProxy relies on the [caarlos0/env](https://github.com/caarlos0/env) package to load environmental variables into its [configuration](https://github.com/arvindh123/mgate/blob/main/config.go#L15).
 You can control how these variables are loaded by passing `env.Options` to the `config.EnvParse` function.
 
-To add a prefix to environmental variables, use `env.Options{Prefix: "MGATE_"}` from the [caarlos0/env](https://github.com/caarlos0/env) package. For example:
+To add a prefix to environmental variables, use `env.Options{Prefix: "MPROXY_"}` from the [caarlos0/env](https://github.com/caarlos0/env) package. For example:
 
 ```go
 package main
@@ -378,30 +378,30 @@ import (
 )
 
 mqttConfig := mgate.Config{}
-if err := mqttConfig.EnvParse(env.Options{Prefix:  "MGATE_" }); err != nil {
+if err := mqttConfig.EnvParse(env.Options{Prefix:  "MPROXY_" }); err != nil {
     panic(err)
 }
 fmt.Printf("%+v\n")
 ```
 
-In the above snippet, `mqttConfig.EnvParse` expects all environmental variables with the prefix `MGATE_`.
+In the above snippet, `mqttConfig.EnvParse` expects all environmental variables with the prefix `MPROXY_`.
 For instance:
 
-- MGATE_ADDRESS
-- MGATE_PATH_PREFIX
-- MGATE_TARGET
-- MGATE_CERT_FILE
-- MGATE_KEY_FILE
-- MGATE_SERVER_CA_FILE
-- MGATE_CLIENT_CA_FILE
-- MGATE_CERT_VERIFICATION_METHODS
-- MGATE_OCSP_DEPTH
-- MGATE_OCSP_RESPONDER_URL
-- MGATE_CRL_DEPTH
-- MGATE_CRL_DISTRIBUTION_POINTS
-- MGATE_CRL_DISTRIBUTION_POINTS_ISSUER_CERT_FILE
-- MGATE_OFFLINE_CRL_FILE
-- MGATE_OFFLINE_CRL_ISSUER_CERT_FILE
+- MPROXY_ADDRESS
+- MPROXY_PATH_PREFIX
+- MPROXY_TARGET
+- MPROXY_CERT_FILE
+- MPROXY_KEY_FILE
+- MPROXY_SERVER_CA_FILE
+- MPROXY_CLIENT_CA_FILE
+- MPROXY_CERT_VERIFICATION_METHODS
+- MPROXY_OCSP_DEPTH
+- MPROXY_OCSP_RESPONDER_URL
+- MPROXY_CRL_DEPTH
+- MPROXY_CRL_DISTRIBUTION_POINTS
+- MPROXY_CRL_DISTRIBUTION_POINTS_ISSUER_CERT_FILE
+- MPROXY_OFFLINE_CRL_FILE
+- MPROXY_OFFLINE_CRL_ISSUER_CERT_FILE
 
 ## License
 
