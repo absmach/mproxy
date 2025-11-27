@@ -18,9 +18,9 @@ import (
 )
 
 type mockHandler struct {
-	connectErr      error
-	publishErr      error
-	subscribeErr    error
+	connectErr   error
+	publishErr   error
+	subscribeErr error
 
 	connectCalled   bool
 	publishCalled   bool
@@ -321,7 +321,7 @@ func TestCoAPParser_ReadError(t *testing.T) {
 	}
 }
 
-// errorReader is a reader that always returns an error
+// errorReader is a reader that always returns an error.
 type errorReader struct {
 	err error
 }

@@ -18,12 +18,12 @@
 //
 // # Connection Flow
 //
-//	1. Client sends HTTP upgrade request to WebSocket
-//	2. Parser upgrades connection using gorilla/websocket
-//	3. Parser creates backend WebSocket connection
-//	4. Parser wraps both connections as net.Conn using Conn adapter
-//	5. Parser delegates to underlying protocol parser (e.g., MQTT)
-//	6. Underlying parser handles protocol-specific packets
+//  1. Client sends HTTP upgrade request to WebSocket
+//  2. Parser upgrades connection using gorilla/websocket
+//  3. Parser creates backend WebSocket connection
+//  4. Parser wraps both connections as net.Conn using Conn adapter
+//  5. Parser delegates to underlying protocol parser (e.g., MQTT)
+//  6. Underlying parser handles protocol-specific packets
 //
 // # Conn Adapter
 //

@@ -374,3 +374,172 @@ func TestTCPServer_ContextCancellation(t *testing.T) {
 		t.Error("Server did not shutdown in time after context cancellation")
 	}
 }
+
+func TestTCPServer_ConnectionLimit(t *testing.T) {
+	mockP := &mockParser{
+		parseErr: nil, // Will block reading
+	}
+	mockH := &mockHandler{}
+
+	// Start a backend that accepts connections but doesn't respond
+	backendListener, err := net.Listen("tcp", "localhost:0")
+	if err != nil {
+		t.Fatalf("Failed to create backend listener: %v", err)
+	}
+	defer backendListener.Close()
+
+	go func() {
+		for {
+			conn, err := backendListener.Accept()
+			if err != nil {
+				return
+			}
+			// Keep connection open
+			defer conn.Close()
+			time.Sleep(10 * time.Second)
+		}
+	}()
+
+	cfg := Config{
+		Address:         "localhost:0",
+		TargetAddress:   backendListener.Addr().String(),
+		MaxConnections:  2, // Limit to 2 connections
+		ShutdownTimeout: 1 * time.Second,
+		Logger:          slog.New(slog.NewTextHandler(os.Stdout, nil)),
+	}
+
+	server := New(cfg, mockP, mockH)
+
+	// Verify semaphore was created
+	if server.connSem == nil {
+		t.Fatal("Expected connection semaphore to be created")
+	}
+	if cap(server.connSem) != 2 {
+		t.Errorf("Expected semaphore capacity of 2, got %d", cap(server.connSem))
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	serverErr := make(chan error, 1)
+	go func() {
+		serverErr <- server.Listen(ctx)
+	}()
+
+	time.Sleep(100 * time.Millisecond)
+
+	// Server should be running
+	select {
+	case err := <-serverErr:
+		t.Fatalf("Server exited prematurely: %v", err)
+	case <-time.After(100 * time.Millisecond):
+		// Good
+	}
+
+	cancel()
+	<-serverErr
+}
+
+func TestTCPServer_TCPOptions(t *testing.T) {
+	mockP := &mockParser{}
+	mockH := &mockHandler{}
+
+	backendListener, err := net.Listen("tcp", "localhost:0")
+	if err != nil {
+		t.Fatalf("Failed to create backend listener: %v", err)
+	}
+	defer backendListener.Close()
+
+	go func() {
+		conn, _ := backendListener.Accept()
+		if conn != nil {
+			defer conn.Close()
+			io.Copy(conn, conn)
+		}
+	}()
+
+	cfg := Config{
+		Address:         "localhost:0",
+		TargetAddress:   backendListener.Addr().String(),
+		TCPKeepAlive:    10 * time.Second,
+		DisableNoDelay:  false, // TCP_NODELAY should be enabled
+		ShutdownTimeout: 1 * time.Second,
+		Logger:          slog.New(slog.NewTextHandler(os.Stdout, nil)),
+	}
+
+	server := New(cfg, mockP, mockH)
+
+	// Verify defaults were set
+	if server.config.TCPKeepAlive != 10*time.Second {
+		t.Errorf("Expected TCPKeepAlive to be 10s, got %v", server.config.TCPKeepAlive)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go server.Listen(ctx)
+	time.Sleep(100 * time.Millisecond)
+
+	cancel()
+}
+
+func TestTCPServer_BufferPool(t *testing.T) {
+	mockP := &mockParser{}
+	mockH := &mockHandler{}
+
+	cfg := Config{
+		Address:       "localhost:0",
+		TargetAddress: "localhost:0",
+		BufferSize:    8192,
+		ReadTimeout:   5 * time.Second,
+		WriteTimeout:  5 * time.Second,
+		Logger:        slog.New(slog.NewTextHandler(os.Stdout, nil)),
+	}
+
+	server := New(cfg, mockP, mockH)
+
+	// Verify buffer pool was created
+	if server.bufferPool == nil {
+		t.Fatal("Expected buffer pool to be created")
+	}
+
+	// Verify buffer size was set
+	if server.config.BufferSize != 8192 {
+		t.Errorf("Expected buffer size 8192, got %d", server.config.BufferSize)
+	}
+
+	// Test buffer pool by getting and returning a buffer
+	bufPtr := server.bufferPool.Get().(*[]byte)
+	buf := *bufPtr
+	if len(buf) != 8192 {
+		t.Errorf("Expected buffer of size 8192, got %d", len(buf))
+	}
+	server.bufferPool.Put(bufPtr)
+}
+
+func TestTCPServer_Timeouts(t *testing.T) {
+	mockP := &mockParser{}
+	mockH := &mockHandler{}
+
+	cfg := Config{
+		Address:       "localhost:0",
+		TargetAddress: "localhost:0",
+		ReadTimeout:   100 * time.Millisecond,
+		WriteTimeout:  100 * time.Millisecond,
+		IdleTimeout:   200 * time.Millisecond,
+		Logger:        slog.New(slog.NewTextHandler(os.Stdout, nil)),
+	}
+
+	server := New(cfg, mockP, mockH)
+
+	// Verify timeouts were set
+	if server.config.ReadTimeout != 100*time.Millisecond {
+		t.Errorf("Expected ReadTimeout 100ms, got %v", server.config.ReadTimeout)
+	}
+	if server.config.WriteTimeout != 100*time.Millisecond {
+		t.Errorf("Expected WriteTimeout 100ms, got %v", server.config.WriteTimeout)
+	}
+	if server.config.IdleTimeout != 200*time.Millisecond {
+		t.Errorf("Expected IdleTimeout 200ms, got %v", server.config.IdleTimeout)
+	}
+}

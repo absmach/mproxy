@@ -46,7 +46,7 @@ func (d Direction) String() string {
 // - Process and authorize it
 // - Write exactly one packet/message to w
 // - Return an error to close the connection
-// - Return io.EOF for clean connection closure
+// - Return io.EOF for clean connection closure.
 type Parser interface {
 	// Parse reads one packet from r, processes it, and writes to w.
 	// The direction indicates packet flow (Upstream or Downstream).

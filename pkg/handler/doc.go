@@ -13,7 +13,7 @@
 // # Data Flow
 //
 //	Client → Parser (extracts auth) → Handler (authorizes) → Server → Backend
-//	Backend → Server → Parser (modifies if needed) → Handler (notifies) → Client
+//	→ Server → Parser (modifies if needed) → Handler (notifies) → Client
 //
 // # Handler Methods
 //

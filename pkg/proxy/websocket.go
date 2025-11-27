@@ -18,13 +18,13 @@ import (
 
 // WebSocketConfig holds configuration for WebSocket proxy.
 type WebSocketConfig struct {
-	Host            string
-	Port            string
-	TargetURL       string
+	Host             string
+	Port             string
+	TargetURL        string
 	UnderlyingParser parser.Parser // The protocol parser to use after WS upgrade (e.g., MQTT)
-	TLSConfig       *tls.Config
-	ShutdownTimeout time.Duration
-	Logger          *slog.Logger
+	TLSConfig        *tls.Config
+	ShutdownTimeout  time.Duration
+	Logger           *slog.Logger
 }
 
 // WebSocketProxy coordinates the WebSocket server and parser.

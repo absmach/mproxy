@@ -7,9 +7,9 @@
 // # Overview
 //
 // Proxy coordinators are convenience wrappers that combine the three core components:
-//   1. Server (TCP or UDP)
-//   2. Parser (protocol-specific)
-//   3. Handler (business logic)
+//  1. Server (TCP or UDP)
+//  2. Parser (protocol-specific)
+//  3. Handler (business logic)
 //
 // # Architecture
 //
@@ -69,10 +69,10 @@
 //
 // # Usage Pattern
 //
-//	1. Create handler implementation
-//	2. Create proxy config
-//	3. Create proxy with handler
-//	4. Start proxy
+//  1. Create handler implementation
+//  2. Create proxy config
+//  3. Create proxy with handler
+//  4. Start proxy
 //
 // Example:
 //

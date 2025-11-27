@@ -15,20 +15,20 @@ import (
 )
 
 type mockHandler struct {
-	connectErr     error
-	publishErr     error
-	subscribeErr   error
+	connectErr   error
+	publishErr   error
+	subscribeErr error
 
-	connectCalled  bool
-	publishCalled  bool
-	subscribeCalled bool
-	unsubCalled    bool
+	connectCalled    bool
+	publishCalled    bool
+	subscribeCalled  bool
+	unsubCalled      bool
 	disconnectCalled bool
 
-	lastHctx     *handler.Context
-	lastTopic    string
-	lastPayload  []byte
-	lastTopics   []string
+	lastHctx    *handler.Context
+	lastTopic   string
+	lastPayload []byte
+	lastTopics  []string
 }
 
 func (m *mockHandler) AuthConnect(ctx context.Context, hctx *handler.Context) error {
@@ -356,7 +356,7 @@ func TestMQTTParser_ReadError(t *testing.T) {
 	}
 }
 
-// errorReader is a reader that always returns an error
+// errorReader is a reader that always returns an error.
 type errorReader struct {
 	err error
 }
@@ -388,7 +388,7 @@ func TestMQTTParser_WriteError(t *testing.T) {
 	}
 }
 
-// errorWriter is a writer that always returns an error
+// errorWriter is a writer that always returns an error.
 type errorWriter struct {
 	err error
 }
