@@ -10,34 +10,32 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
-	"github.com/absmach/mgate"
-	"github.com/absmach/mgate/examples/simple"
-	"github.com/absmach/mgate/pkg/coap"
-	"github.com/absmach/mgate/pkg/http"
-	"github.com/absmach/mgate/pkg/mqtt"
-	"github.com/absmach/mgate/pkg/mqtt/websocket"
-	"github.com/absmach/mgate/pkg/session"
+	"github.com/absmach/mproxy"
+	"github.com/absmach/mproxy/examples/simple"
+	"github.com/absmach/mproxy/pkg/parser/mqtt"
+	"github.com/absmach/mproxy/pkg/proxy"
 	"github.com/caarlos0/env/v11"
 	"github.com/joho/godotenv"
 	"golang.org/x/sync/errgroup"
 )
 
 const (
-	mqttWithoutTLS = "MGATE_MQTT_WITHOUT_TLS_"
-	mqttWithTLS    = "MGATE_MQTT_WITH_TLS_"
-	mqttWithmTLS   = "MGATE_MQTT_WITH_MTLS_"
+	mqttWithoutTLS = "MPROXY_MQTT_WITHOUT_TLS_"
+	mqttWithTLS    = "MPROXY_MQTT_WITH_TLS_"
+	mqttWithmTLS   = "MPROXY_MQTT_WITH_MTLS_"
 
-	mqttWSWithoutTLS = "MGATE_MQTT_WS_WITHOUT_TLS_"
-	mqttWSWithTLS    = "MGATE_MQTT_WS_WITH_TLS_"
-	mqttWSWithmTLS   = "MGATE_MQTT_WS_WITH_MTLS_"
+	mqttWSWithoutTLS = "MPROXY_MQTT_WS_WITHOUT_TLS_"
+	mqttWSWithTLS    = "MPROXY_MQTT_WS_WITH_TLS_"
+	mqttWSWithmTLS   = "MPROXY_MQTT_WS_WITH_MTLS_"
 
-	httpWithoutTLS = "MGATE_HTTP_WITHOUT_TLS_"
-	httpWithTLS    = "MGATE_HTTP_WITH_TLS_"
-	httpWithmTLS   = "MGATE_HTTP_WITH_MTLS_"
+	httpWithoutTLS = "MPROXY_HTTP_WITHOUT_TLS_"
+	httpWithTLS    = "MPROXY_HTTP_WITH_TLS_"
+	httpWithmTLS   = "MPROXY_HTTP_WITH_MTLS_"
 
-	coapWithoutDTLS = "MGATE_COAP_WITHOUT_DTLS_"
-	coapWithDTLS    = "MGATE_COAP_WITH_DTLS_"
+	coapWithoutDTLS = "MPROXY_COAP_WITHOUT_DTLS_"
+	coapWithDTLS    = "MPROXY_COAP_WITH_DTLS_"
 )
 
 func main() {
@@ -49,166 +47,221 @@ func main() {
 	})
 	logger := slog.New(logHandler)
 
+	// Create handler
 	handler := simple.New(logger)
 
-	var beforeHandler, afterHandler session.Interceptor
-
-	// Loading .env file to environment
-	err := godotenv.Load()
-	if err != nil {
-		panic(err)
+	// Load .env file
+	if err := godotenv.Load(); err != nil {
+		logger.Warn("no .env file found, using environment variables")
 	}
 
-	// mGate server Configuration for MQTT without TLS
-	mqttConfig, err := mgate.NewConfig(env.Options{Prefix: mqttWithoutTLS})
-	if err != nil {
-		panic(err)
+	// Start MQTT proxies
+	if err := startMQTTProxy(g, ctx, mqttWithoutTLS, handler, logger); err != nil {
+		logger.Warn("MQTT without TLS proxy not started", slog.String("error", err.Error()))
 	}
 
-	// mGate server for MQTT without TLS
-	mqttProxy := mqtt.New(mqttConfig, handler, beforeHandler, afterHandler, logger)
-	g.Go(func() error {
-		return mqttProxy.Listen(ctx)
-	})
-
-	// mGate server Configuration for MQTT with TLS
-	mqttTLSConfig, err := mgate.NewConfig(env.Options{Prefix: mqttWithTLS})
-	if err != nil {
-		panic(err)
+	if err := startMQTTProxy(g, ctx, mqttWithTLS, handler, logger); err != nil {
+		logger.Warn("MQTT with TLS proxy not started", slog.String("error", err.Error()))
 	}
 
-	// mGate server for MQTT with TLS
-	mqttTLSProxy := mqtt.New(mqttTLSConfig, handler, beforeHandler, afterHandler, logger)
-	g.Go(func() error {
-		return mqttTLSProxy.Listen(ctx)
-	})
-
-	//  mGate server Configuration for MQTT with mTLS
-	mqttMTLSConfig, err := mgate.NewConfig(env.Options{Prefix: mqttWithmTLS})
-	if err != nil {
-		panic(err)
+	if err := startMQTTProxy(g, ctx, mqttWithmTLS, handler, logger); err != nil {
+		logger.Warn("MQTT with mTLS proxy not started", slog.String("error", err.Error()))
 	}
 
-	// mGate server for MQTT with mTLS
-	mqttMTlsProxy := mqtt.New(mqttMTLSConfig, handler, beforeHandler, afterHandler, logger)
-	g.Go(func() error {
-		return mqttMTlsProxy.Listen(ctx)
-	})
-
-	// mGate server Configuration for MQTT over Websocket without TLS
-	wsConfig, err := mgate.NewConfig(env.Options{Prefix: mqttWSWithoutTLS})
-	if err != nil {
-		panic(err)
+	// Start MQTT over WebSocket proxies
+	if err := startWebSocketProxy(g, ctx, mqttWSWithoutTLS, handler, logger); err != nil {
+		logger.Warn("MQTT WebSocket without TLS proxy not started", slog.String("error", err.Error()))
 	}
 
-	// mGate server for MQTT over Websocket without TLS
-	wsProxy := websocket.New(wsConfig, handler, beforeHandler, afterHandler, logger)
-	g.Go(func() error {
-		return wsProxy.Listen(ctx)
-	})
-
-	// mGate server Configuration for MQTT over Websocket with TLS
-	wsTLSConfig, err := mgate.NewConfig(env.Options{Prefix: mqttWSWithTLS})
-	if err != nil {
-		panic(err)
+	if err := startWebSocketProxy(g, ctx, mqttWSWithTLS, handler, logger); err != nil {
+		logger.Warn("MQTT WebSocket with TLS proxy not started", slog.String("error", err.Error()))
 	}
 
-	// mGate server for MQTT over Websocket with TLS
-	wsTLSProxy := websocket.New(wsTLSConfig, handler, beforeHandler, afterHandler, logger)
-	g.Go(func() error {
-		return wsTLSProxy.Listen(ctx)
-	})
-
-	// mGate server Configuration for MQTT over Websocket with mTLS
-	wsMTLSConfig, err := mgate.NewConfig(env.Options{Prefix: mqttWSWithmTLS})
-	if err != nil {
-		panic(err)
+	if err := startWebSocketProxy(g, ctx, mqttWSWithmTLS, handler, logger); err != nil {
+		logger.Warn("MQTT WebSocket with mTLS proxy not started", slog.String("error", err.Error()))
 	}
 
-	// mGate server for MQTT over Websocket with mTLS
-	wsMTLSProxy := websocket.New(wsMTLSConfig, handler, beforeHandler, afterHandler, logger)
-	g.Go(func() error {
-		return wsMTLSProxy.Listen(ctx)
-	})
-
-	// mGate server Configuration for HTTP without TLS
-	httpConfig, err := mgate.NewConfig(env.Options{Prefix: httpWithoutTLS})
-	if err != nil {
-		panic(err)
+	// Start HTTP proxies
+	if err := startHTTPProxy(g, ctx, httpWithoutTLS, handler, logger); err != nil {
+		logger.Warn("HTTP without TLS proxy not started", slog.String("error", err.Error()))
 	}
 
-	// mGate server for HTTP without TLS
-	httpProxy, err := http.NewProxy(httpConfig, handler, logger, []string{}, []string{})
-	if err != nil {
-		panic(err)
-	}
-	g.Go(func() error {
-		return httpProxy.Listen(ctx)
-	})
-
-	// mGate server Configuration for HTTP with TLS
-	httpTLSConfig, err := mgate.NewConfig(env.Options{Prefix: httpWithTLS})
-	if err != nil {
-		panic(err)
+	if err := startHTTPProxy(g, ctx, httpWithTLS, handler, logger); err != nil {
+		logger.Warn("HTTP with TLS proxy not started", slog.String("error", err.Error()))
 	}
 
-	// mGate server for HTTP with TLS
-	httpTLSProxy, err := http.NewProxy(httpTLSConfig, handler, logger, []string{}, []string{})
-	if err != nil {
-		panic(err)
-	}
-	g.Go(func() error {
-		return httpTLSProxy.Listen(ctx)
-	})
-
-	// mGate server Configuration for HTTP with mTLS
-	httpMTLSConfig, err := mgate.NewConfig(env.Options{Prefix: httpWithmTLS})
-	if err != nil {
-		panic(err)
+	if err := startHTTPProxy(g, ctx, httpWithmTLS, handler, logger); err != nil {
+		logger.Warn("HTTP with mTLS proxy not started", slog.String("error", err.Error()))
 	}
 
-	// mGate server for HTTP with mTLS
-	httpMTLSProxy, err := http.NewProxy(httpMTLSConfig, handler, logger, []string{}, []string{})
-	if err != nil {
-		panic(err)
-	}
-	g.Go(func() error {
-		return httpMTLSProxy.Listen(ctx)
-	})
-
-	// mGate server Configuration for CoAP without DTLS
-	coapConfig, err := mgate.NewConfig(env.Options{Prefix: coapWithoutDTLS})
-	if err != nil {
-		panic(err)
+	// Start CoAP proxies
+	if err := startCoAPProxy(g, ctx, coapWithoutDTLS, handler, logger); err != nil {
+		logger.Warn("CoAP without DTLS proxy not started", slog.String("error", err.Error()))
 	}
 
-	// mGate server for CoAP without DTLS
-	coapProxy := coap.NewProxy(coapConfig, handler, logger)
-	g.Go(func() error {
-		return coapProxy.Listen(ctx)
-	})
-
-	// mGate server Configuration for CoAP with DTLS
-	coapDTLSConfig, err := mgate.NewConfig(env.Options{Prefix: coapWithDTLS})
-	if err != nil {
-		panic(err)
+	if err := startCoAPProxy(g, ctx, coapWithDTLS, handler, logger); err != nil {
+		logger.Warn("CoAP with DTLS proxy not started", slog.String("error", err.Error()))
 	}
 
-	// mGate server for CoAP with DTLS
-	coapDTLSProxy := coap.NewProxy(coapDTLSConfig, handler, logger)
-	g.Go(func() error {
-		return coapDTLSProxy.Listen(ctx)
-	})
-
+	// Signal handler
 	g.Go(func() error {
 		return StopSignalHandler(ctx, cancel, logger)
 	})
 
 	if err := g.Wait(); err != nil {
-		logger.Error(fmt.Sprintf("mGate service terminated with error: %s", err))
+		logger.Error(fmt.Sprintf("mProxy service terminated with error: %s", err))
 	} else {
-		logger.Info("mGate service stopped")
+		logger.Info("mProxy service stopped")
 	}
+}
+
+func startMQTTProxy(g *errgroup.Group, ctx context.Context, envPrefix string, handler *simple.Handler, logger *slog.Logger) error {
+	cfg, err := mproxy.NewConfig(env.Options{Prefix: envPrefix})
+	if err != nil {
+		return err
+	}
+
+	// Skip if port is not configured
+	if cfg.Port == "" {
+		return fmt.Errorf("port not configured")
+	}
+
+	mqttCfg := proxy.MQTTConfig{
+		Host:            cfg.Host,
+		Port:            cfg.Port,
+		TargetHost:      cfg.TargetHost,
+		TargetPort:      cfg.TargetPort,
+		TLSConfig:       cfg.TLSConfig,
+		ShutdownTimeout: 30 * time.Second,
+		Logger:          logger,
+	}
+
+	mqttProxy, err := proxy.NewMQTT(mqttCfg, handler)
+	if err != nil {
+		return err
+	}
+
+	g.Go(func() error {
+		return mqttProxy.Listen(ctx)
+	})
+
+	logger.Info("MQTT proxy started", slog.String("prefix", envPrefix))
+	return nil
+}
+
+func startWebSocketProxy(g *errgroup.Group, ctx context.Context, envPrefix string, handler *simple.Handler, logger *slog.Logger) error {
+	cfg, err := mproxy.NewConfig(env.Options{Prefix: envPrefix})
+	if err != nil {
+		return err
+	}
+
+	// Skip if port is not configured
+	if cfg.Port == "" {
+		return fmt.Errorf("port not configured")
+	}
+
+	// Build WebSocket target URL
+	protocol := cfg.TargetProtocol
+	if protocol == "" {
+		protocol = "ws"
+	}
+	targetURL := fmt.Sprintf("%s://%s:%s%s", protocol, cfg.TargetHost, cfg.TargetPort, cfg.TargetPath)
+
+	wsCfg := proxy.WebSocketConfig{
+		Host:             cfg.Host,
+		Port:             cfg.Port,
+		TargetURL:        targetURL,
+		UnderlyingParser: &mqtt.Parser{}, // MQTT over WebSocket
+		TLSConfig:        cfg.TLSConfig,
+		ShutdownTimeout:  30 * time.Second,
+		Logger:           logger,
+	}
+
+	wsProxy, err := proxy.NewWebSocket(wsCfg, handler)
+	if err != nil {
+		return err
+	}
+
+	g.Go(func() error {
+		return wsProxy.Listen(ctx)
+	})
+
+	logger.Info("WebSocket proxy started", slog.String("prefix", envPrefix))
+	return nil
+}
+
+func startHTTPProxy(g *errgroup.Group, ctx context.Context, envPrefix string, handler *simple.Handler, logger *slog.Logger) error {
+	cfg, err := mproxy.NewConfig(env.Options{Prefix: envPrefix})
+	if err != nil {
+		return err
+	}
+
+	// Skip if port is not configured
+	if cfg.Port == "" {
+		return fmt.Errorf("port not configured")
+	}
+
+	// Build HTTP target URL
+	protocol := cfg.TargetProtocol
+	if protocol == "" {
+		protocol = "http"
+	}
+	targetURL := fmt.Sprintf("%s://%s:%s", protocol, cfg.TargetHost, cfg.TargetPort)
+
+	httpCfg := proxy.HTTPConfig{
+		Host:            cfg.Host,
+		Port:            cfg.Port,
+		TargetURL:       targetURL,
+		TLSConfig:       cfg.TLSConfig,
+		ShutdownTimeout: 30 * time.Second,
+		Logger:          logger,
+	}
+
+	httpProxy, err := proxy.NewHTTP(httpCfg, handler)
+	if err != nil {
+		return err
+	}
+
+	g.Go(func() error {
+		return httpProxy.Listen(ctx)
+	})
+
+	logger.Info("HTTP proxy started", slog.String("prefix", envPrefix))
+	return nil
+}
+
+func startCoAPProxy(g *errgroup.Group, ctx context.Context, envPrefix string, handler *simple.Handler, logger *slog.Logger) error {
+	cfg, err := mproxy.NewConfig(env.Options{Prefix: envPrefix})
+	if err != nil {
+		return err
+	}
+
+	// Skip if port is not configured
+	if cfg.Port == "" {
+		return fmt.Errorf("port not configured")
+	}
+
+	coapCfg := proxy.CoAPConfig{
+		Host:            cfg.Host,
+		Port:            cfg.Port,
+		TargetHost:      cfg.TargetHost,
+		TargetPort:      cfg.TargetPort,
+		SessionTimeout:  30 * time.Second,
+		ShutdownTimeout: 30 * time.Second,
+		Logger:          logger,
+	}
+
+	coapProxy, err := proxy.NewCoAP(coapCfg, handler)
+	if err != nil {
+		return err
+	}
+
+	g.Go(func() error {
+		return coapProxy.Listen(ctx)
+	})
+
+	logger.Info("CoAP proxy started", slog.String("prefix", envPrefix))
+	return nil
 }
 
 func StopSignalHandler(ctx context.Context, cancel context.CancelFunc, logger *slog.Logger) error {
@@ -216,6 +269,7 @@ func StopSignalHandler(ctx context.Context, cancel context.CancelFunc, logger *s
 	signal.Notify(c, syscall.SIGINT, syscall.SIGABRT)
 	select {
 	case <-c:
+		logger.Info("received shutdown signal")
 		cancel()
 		return nil
 	case <-ctx.Done():

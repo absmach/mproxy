@@ -8,9 +8,9 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/absmach/mgate/pkg/tls/verifier"
-	"github.com/absmach/mgate/pkg/tls/verifier/crl"
-	"github.com/absmach/mgate/pkg/tls/verifier/ocsp"
+	"github.com/absmach/mproxy/pkg/tls/verifier"
+	"github.com/absmach/mproxy/pkg/tls/verifier/crl"
+	"github.com/absmach/mproxy/pkg/tls/verifier/ocsp"
 	"github.com/caarlos0/env/v11"
 )
 
