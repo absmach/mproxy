@@ -21,7 +21,7 @@ import (
 // Note: HTTP is request/response based, not streaming, so it doesn't
 // use the Parse method. Instead it implements http.Handler.
 type Parser struct {
-	target *httputil.ReverseProxy
+	target  *httputil.ReverseProxy
 	handler handler.Handler
 	logger  *slog.Logger
 }

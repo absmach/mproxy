@@ -108,7 +108,7 @@ func (p *Parser) handleUpstream(ctx context.Context, msg *pool.Message, h handle
 }
 
 // extractAuthFromQuery extracts the auth parameter from query string.
-// CoAP uses URI-Query options: ?auth=<key>
+// CoAP uses URI-Query options: ?auth=<key>.
 func extractAuthFromQuery(msg *pool.Message) string {
 	queries, err := msg.Options().Queries()
 	if err != nil {

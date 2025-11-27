@@ -14,10 +14,8 @@ import (
 	"github.com/eclipse/paho.mqtt.golang/packets"
 )
 
-var (
-	// ErrUnauthorized is returned when authorization fails.
-	ErrUnauthorized = errors.New("unauthorized")
-)
+// ErrUnauthorized is returned when authorization fails.
+var ErrUnauthorized = errors.New("unauthorized")
 
 // Parser implements the parser.Parser interface for MQTT protocol.
 type Parser struct{}
@@ -27,7 +25,7 @@ var _ parser.Parser = (*Parser)(nil)
 // Parse reads one MQTT packet from r, processes it, and writes to w.
 // It implements bidirectional packet inspection and modification:
 // - Upstream (client→backend): Extracts auth, authorizes, may modify
-// - Downstream (backend→client): Usually just forwards, may authorize broker actions
+// - Downstream (backend→client): Usually just forwards, may authorize broker actions.
 func (p *Parser) Parse(ctx context.Context, r io.Reader, w io.Writer, dir parser.Direction, h handler.Handler, hctx *handler.Context) error {
 	// Read MQTT packet
 	pkt, err := packets.ReadPacket(r)

@@ -42,15 +42,15 @@
 //
 // # Packet Flow
 //
-//	1. Client sends UDP packet to server
-//	2. Server identifies client by IP:Port
-//	3. Server gets or creates session for client
-//	4. Server spawns goroutines (first packet only):
-//	   - Upstream: Client → Backend
-//	   - Downstream: Backend → Client
-//	5. Parser.Parse() called with packet data
-//	6. Packet forwarded to backend
-//	7. Session LastActivity updated
+//  1. Client sends UDP packet to server
+//  2. Server identifies client by IP:Port
+//  3. Server gets or creates session for client
+//  4. Server spawns goroutines (first packet only):
+//     - Upstream: Client → Backend
+//     - Downstream: Backend → Client
+//  5. Parser.Parse() called with packet data
+//  6. Packet forwarded to backend
+//  7. Session LastActivity updated
 //
 // # Session Lifecycle
 //
@@ -93,14 +93,14 @@
 //
 // When context is canceled:
 //
-//	1. Server stops receiving new packets
-//	2. Server calls ForceCloseAll() on session manager
-//	3. Each session:
-//	   - Calls handler.OnDisconnect()
-//	   - Cancels session context
-//	   - Closes backend connection
-//	4. Server waits for all goroutines to finish (with timeout)
-//	5. Returns ErrShutdownTimeout if timeout exceeded
+//  1. Server stops receiving new packets
+//  2. Server calls ForceCloseAll() on session manager
+//  3. Each session:
+//     - Calls handler.OnDisconnect()
+//     - Cancels session context
+//     - Closes backend connection
+//  4. Server waits for all goroutines to finish (with timeout)
+//  5. Returns ErrShutdownTimeout if timeout exceeded
 //
 // # Session Cleanup
 //

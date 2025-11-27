@@ -32,21 +32,21 @@
 //
 // # Publish Flow (POST/PUT)
 //
-//	1. Client sends POST/PUT message
-//	2. Parser extracts path and payload
-//	3. Parser extracts auth token from query
-//	4. Parser calls handler.AuthConnect()
-//	5. Parser calls handler.AuthPublish()
-//	6. If authorized, message forwarded to backend
+//  1. Client sends POST/PUT message
+//  2. Parser extracts path and payload
+//  3. Parser extracts auth token from query
+//  4. Parser calls handler.AuthConnect()
+//  5. Parser calls handler.AuthPublish()
+//  6. If authorized, message forwarded to backend
 //
 // # Subscribe Flow (GET with Observe)
 //
-//	1. Client sends GET with Observe option
-//	2. Parser extracts path
-//	3. Parser extracts auth token from query
-//	4. Parser calls handler.AuthConnect()
-//	5. Parser calls handler.AuthSubscribe()
-//	6. If authorized, message forwarded to backend
+//  1. Client sends GET with Observe option
+//  2. Parser extracts path
+//  3. Parser extracts auth token from query
+//  4. Parser calls handler.AuthConnect()
+//  5. Parser calls handler.AuthSubscribe()
+//  6. If authorized, message forwarded to backend
 //
 // # Path as Topic
 //

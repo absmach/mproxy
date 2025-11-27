@@ -24,16 +24,16 @@
 //
 // # Request Flow
 //
-//	1. Client sends HTTP request
-//	2. Parser extracts auth credentials
-//	3. Parser calls handler.AuthConnect()
-//	4. For POST/PUT/PATCH:
-//	   - Parser reads request body
-//	   - Parser calls handler.AuthPublish()
-//	   - Handler can modify body
-//	5. Request forwarded to backend via reverse proxy
-//	6. Backend sends response
-//	7. Response forwarded to client
+//  1. Client sends HTTP request
+//  2. Parser extracts auth credentials
+//  3. Parser calls handler.AuthConnect()
+//  4. For POST/PUT/PATCH:
+//     - Parser reads request body
+//     - Parser calls handler.AuthPublish()
+//     - Handler can modify body
+//  5. Request forwarded to backend via reverse proxy
+//  6. Backend sends response
+//  7. Response forwarded to client
 //
 // # Method Mapping
 //

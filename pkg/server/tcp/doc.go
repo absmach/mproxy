@@ -25,15 +25,15 @@
 //
 // # Connection Flow
 //
-//	1. Client connects to server
-//	2. Server accepts connection
-//	3. Server dials backend
-//	4. Server spawns two goroutines:
-//	   - Upstream: Client → Backend (calls parser.Parse(Upstream))
-//	   - Downstream: Backend → Client (calls parser.Parse(Downstream))
-//	5. Both goroutines run until connection closes
-//	6. Server calls handler.OnDisconnect()
-//	7. Both connections closed
+//  1. Client connects to server
+//  2. Server accepts connection
+//  3. Server dials backend
+//  4. Server spawns two goroutines:
+//     - Upstream: Client → Backend (calls parser.Parse(Upstream))
+//     - Downstream: Backend → Client (calls parser.Parse(Downstream))
+//  5. Both goroutines run until connection closes
+//  6. Server calls handler.OnDisconnect()
+//  7. Both connections closed
 //
 // # Bidirectional Streaming
 //
@@ -53,10 +53,10 @@
 //
 // When context is canceled:
 //
-//	1. Server stops accepting new connections
-//	2. Server waits for existing connections (with timeout)
-//	3. After ShutdownTimeout, forcefully closes remaining connections
-//	4. Returns ErrShutdownTimeout if timeout exceeded
+//  1. Server stops accepting new connections
+//  2. Server waits for existing connections (with timeout)
+//  3. After ShutdownTimeout, forcefully closes remaining connections
+//  4. Returns ErrShutdownTimeout if timeout exceeded
 //
 // Connection tracking uses sync.WaitGroup:
 //

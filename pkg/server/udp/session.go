@@ -66,20 +66,22 @@ func (s *Session) Close() error {
 
 // SessionManager manages multiple UDP sessions keyed by client address.
 type SessionManager struct {
-	sessions map[string]*Session
-	mu       sync.RWMutex
-	logger   *slog.Logger
-	wg       sync.WaitGroup
+	sessions    map[string]*Session
+	mu          sync.RWMutex
+	logger      *slog.Logger
+	wg          sync.WaitGroup
+	maxSessions int
 }
 
 // NewSessionManager creates a new session manager.
-func NewSessionManager(logger *slog.Logger) *SessionManager {
+func NewSessionManager(logger *slog.Logger, maxSessions int) *SessionManager {
 	if logger == nil {
 		logger = slog.Default()
 	}
 	return &SessionManager{
-		sessions: make(map[string]*Session),
-		logger:   logger,
+		sessions:    make(map[string]*Session),
+		logger:      logger,
+		maxSessions: maxSessions,
 	}
 }
 
@@ -104,6 +106,11 @@ func (sm *SessionManager) GetOrCreate(ctx context.Context, clientAddr *net.UDPAd
 	if sess, ok := sm.sessions[key]; ok {
 		sess.UpdateActivity()
 		return sess, false, nil
+	}
+
+	// Check session limit
+	if sm.maxSessions > 0 && len(sm.sessions) >= sm.maxSessions {
+		return nil, false, fmt.Errorf("session limit reached (%d), rejecting new session", sm.maxSessions)
 	}
 
 	// Dial backend

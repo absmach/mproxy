@@ -21,11 +21,11 @@ import (
 // It upgrades HTTP connections to WebSocket and then delegates to an
 // underlying protocol parser (typically MQTT over WebSocket).
 type Parser struct {
-	upgrader        websocket.Upgrader
-	targetURL       string
+	upgrader         websocket.Upgrader
+	targetURL        string
 	underlyingParser parser.Parser
-	handler         handler.Handler
-	logger          *slog.Logger
+	handler          handler.Handler
+	logger           *slog.Logger
 }
 
 var _ http.Handler = (*Parser)(nil)

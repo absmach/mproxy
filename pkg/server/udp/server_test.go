@@ -18,9 +18,9 @@ import (
 	"github.com/absmach/mproxy/pkg/parser"
 )
 
-type mockParser struct{
-	parseErr     error
-	parseCalled  int
+type mockParser struct {
+	parseErr    error
+	parseCalled int
 }
 
 func (m *mockParser) Parse(ctx context.Context, r io.Reader, w io.Writer, dir parser.Direction, h handler.Handler, hctx *handler.Context) error {
@@ -276,7 +276,7 @@ func TestUDPServer_ContextCancellation(t *testing.T) {
 
 func TestSessionManager_GetOrCreate(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	sm := NewSessionManager(logger)
+	sm := NewSessionManager(logger, 0) // No session limit
 
 	// Start a backend server
 	backendAddr, err := net.ResolveUDPAddr("udp", "localhost:0")
@@ -332,7 +332,7 @@ func TestSessionManager_GetOrCreate(t *testing.T) {
 
 func TestSessionManager_Cleanup(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	sm := NewSessionManager(logger)
+	sm := NewSessionManager(logger, 0) // No session limit
 	mockH := &mockHandler{}
 
 	// Start a backend server
@@ -374,7 +374,7 @@ func TestSessionManager_Cleanup(t *testing.T) {
 
 func TestSessionManager_ForceCloseAll(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	sm := NewSessionManager(logger)
+	sm := NewSessionManager(logger, 0) // No session limit
 	mockH := &mockHandler{}
 
 	// Start a backend server
@@ -495,4 +495,205 @@ func TestUDPServer_ParseError(t *testing.T) {
 
 	// Server should handle parse errors gracefully
 	// and continue running
+}
+
+func TestUDPServer_SessionLimit(t *testing.T) {
+	mockP := &mockParser{}
+	mockH := &mockHandler{}
+
+	backendAddr, _ := net.ResolveUDPAddr("udp", "localhost:0")
+	backendConn, _ := net.ListenUDP("udp", backendAddr)
+	defer backendConn.Close()
+
+	cfg := Config{
+		Address:         "localhost:0",
+		TargetAddress:   backendConn.LocalAddr().String(),
+		MaxSessions:     5, // Limit to 5 sessions
+		SessionTimeout:  1 * time.Second,
+		ShutdownTimeout: 5 * time.Second,
+		Logger:          slog.New(slog.NewTextHandler(os.Stdout, nil)),
+	}
+
+	server := New(cfg, mockP, mockH)
+
+	// Verify session limit was set
+	if server.sessions.maxSessions != 5 {
+		t.Errorf("Expected max sessions 5, got %d", server.sessions.maxSessions)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go server.Listen(ctx)
+	time.Sleep(100 * time.Millisecond)
+
+	cancel()
+}
+
+func TestUDPServer_WorkerPool(t *testing.T) {
+	mockP := &mockParser{}
+	mockH := &mockHandler{}
+
+	backendAddr, _ := net.ResolveUDPAddr("udp", "localhost:0")
+	backendConn, _ := net.ListenUDP("udp", backendAddr)
+	defer backendConn.Close()
+
+	cfg := Config{
+		Address:         "localhost:0",
+		TargetAddress:   backendConn.LocalAddr().String(),
+		WorkerPoolSize:  50, // Custom worker pool size
+		SessionTimeout:  1 * time.Second,
+		ShutdownTimeout: 5 * time.Second,
+		Logger:          slog.New(slog.NewTextHandler(os.Stdout, nil)),
+	}
+
+	server := New(cfg, mockP, mockH)
+
+	// Verify worker pool size was set
+	if server.config.WorkerPoolSize != 50 {
+		t.Errorf("Expected worker pool size 50, got %d", server.config.WorkerPoolSize)
+	}
+
+	// Verify packet channel was created
+	if server.packetCh == nil {
+		t.Fatal("Expected packet channel to be created")
+	}
+
+	// Verify channel buffer size
+	if cap(server.packetCh) != 100 { // WorkerPoolSize * 2
+		t.Errorf("Expected packet channel capacity 100, got %d", cap(server.packetCh))
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go server.Listen(ctx)
+	time.Sleep(100 * time.Millisecond)
+
+	cancel()
+	time.Sleep(100 * time.Millisecond)
+}
+
+func TestUDPServer_BufferPool(t *testing.T) {
+	mockP := &mockParser{}
+	mockH := &mockHandler{}
+
+	cfg := Config{
+		Address:         "localhost:0",
+		TargetAddress:   "localhost:0",
+		BufferSize:      16384, // Custom buffer size
+		SessionTimeout:  1 * time.Second,
+		ShutdownTimeout: 5 * time.Second,
+		Logger:          slog.New(slog.NewTextHandler(os.Stdout, nil)),
+	}
+
+	server := New(cfg, mockP, mockH)
+
+	// Verify buffer pool was created
+	if server.bufferPool == nil {
+		t.Fatal("Expected buffer pool to be created")
+	}
+
+	// Verify buffer size was set
+	if server.config.BufferSize != 16384 {
+		t.Errorf("Expected buffer size 16384, got %d", server.config.BufferSize)
+	}
+
+	// Test buffer pool by getting and returning a buffer
+	bufPtr := server.bufferPool.Get().(*[]byte)
+	buf := *bufPtr
+	if len(buf) != 16384 {
+		t.Errorf("Expected buffer of size 16384, got %d", len(buf))
+	}
+	server.bufferPool.Put(bufPtr)
+}
+
+func TestUDPServer_BufferSizeLimit(t *testing.T) {
+	mockP := &mockParser{}
+	mockH := &mockHandler{}
+
+	cfg := Config{
+		Address:         "localhost:0",
+		TargetAddress:   "localhost:0",
+		BufferSize:      100000, // Exceeds MaxDatagramSize
+		SessionTimeout:  1 * time.Second,
+		ShutdownTimeout: 5 * time.Second,
+		Logger:          slog.New(slog.NewTextHandler(os.Stdout, nil)),
+	}
+
+	server := New(cfg, mockP, mockH)
+
+	// Verify buffer size was capped to MaxDatagramSize
+	if server.config.BufferSize != MaxDatagramSize {
+		t.Errorf("Expected buffer size %d, got %d", MaxDatagramSize, server.config.BufferSize)
+	}
+}
+
+func TestUDPServer_DefaultConfig(t *testing.T) {
+	mockP := &mockParser{}
+	mockH := &mockHandler{}
+
+	cfg := Config{
+		Address:       "localhost:0",
+		TargetAddress: "localhost:0",
+		// No optional settings
+	}
+
+	server := New(cfg, mockP, mockH)
+
+	// Verify defaults were set
+	if server.config.SessionTimeout != DefaultSessionTimeout {
+		t.Errorf("Expected default session timeout %v, got %v", DefaultSessionTimeout, server.config.SessionTimeout)
+	}
+	if server.config.ShutdownTimeout != DefaultShutdownTimeout {
+		t.Errorf("Expected default shutdown timeout %v, got %v", DefaultShutdownTimeout, server.config.ShutdownTimeout)
+	}
+	if server.config.BufferSize != DefaultBufferSize {
+		t.Errorf("Expected default buffer size %d, got %d", DefaultBufferSize, server.config.BufferSize)
+	}
+	if server.config.WorkerPoolSize != DefaultWorkerPoolSize {
+		t.Errorf("Expected default worker pool size %d, got %d", DefaultWorkerPoolSize, server.config.WorkerPoolSize)
+	}
+}
+
+func TestSessionManager_SessionLimit(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	sm := NewSessionManager(logger, 2) // Limit to 2 sessions
+
+	backendAddr, _ := net.ResolveUDPAddr("udp", "localhost:0")
+	backendConn, _ := net.ListenUDP("udp", backendAddr)
+	defer backendConn.Close()
+
+	targetAddr := backendConn.LocalAddr().String()
+
+	// Create first session
+	addr1, _ := net.ResolveUDPAddr("udp", "127.0.0.1:10001")
+	_, isNew, err := sm.GetOrCreate(context.Background(), addr1, targetAddr)
+	if err != nil {
+		t.Fatalf("Failed to create first session: %v", err)
+	}
+	if !isNew {
+		t.Error("Expected new session")
+	}
+
+	// Create second session
+	addr2, _ := net.ResolveUDPAddr("udp", "127.0.0.1:10002")
+	_, isNew, err = sm.GetOrCreate(context.Background(), addr2, targetAddr)
+	if err != nil {
+		t.Fatalf("Failed to create second session: %v", err)
+	}
+	if !isNew {
+		t.Error("Expected new session")
+	}
+
+	// Try to create third session - should fail
+	addr3, _ := net.ResolveUDPAddr("udp", "127.0.0.1:10003")
+	_, _, err = sm.GetOrCreate(context.Background(), addr3, targetAddr)
+	if err == nil {
+		t.Error("Expected error when exceeding session limit")
+	}
+
+	// Clean up
+	sm.Remove(addr1)
+	sm.Remove(addr2)
 }

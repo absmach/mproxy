@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/absmach/mproxy/pkg/handler"
@@ -25,12 +26,16 @@ const (
 
 	// MaxDatagramSize is the maximum size of a UDP datagram.
 	MaxDatagramSize = 65535
+
+	// DefaultBufferSize is the default buffer size for UDP packets.
+	DefaultBufferSize = 8192
+
+	// DefaultWorkerPoolSize is the default number of workers for packet processing.
+	DefaultWorkerPoolSize = 100
 )
 
-var (
-	// ErrShutdownTimeout is returned when graceful shutdown exceeds the configured timeout.
-	ErrShutdownTimeout = errors.New("shutdown timeout exceeded")
-)
+// ErrShutdownTimeout is returned when graceful shutdown exceeds the configured timeout.
+var ErrShutdownTimeout = errors.New("shutdown timeout exceeded")
 
 // Config holds the UDP server configuration.
 type Config struct {
@@ -48,17 +53,49 @@ type Config struct {
 	// during graceful shutdown
 	ShutdownTimeout time.Duration
 
+	// MaxSessions is the maximum number of concurrent UDP sessions allowed.
+	// If 0, no limit is enforced. Default is 0 (unlimited).
+	MaxSessions int
+
+	// BufferSize is the size of datagram read buffers in bytes.
+	// If 0, uses DefaultBufferSize (8192 bytes).
+	// Must not exceed MaxDatagramSize (65535).
+	BufferSize int
+
+	// WorkerPoolSize is the number of goroutines in the packet processing pool.
+	// If 0, uses DefaultWorkerPoolSize (100).
+	// Increasing this can improve throughput under high load.
+	WorkerPoolSize int
+
+	// ReadBufferSize sets the socket receive buffer size (SO_RCVBUF).
+	// If 0, uses system default.
+	ReadBufferSize int
+
+	// WriteBufferSize sets the socket send buffer size (SO_SNDBUF).
+	// If 0, uses system default.
+	WriteBufferSize int
+
 	// Logger for server events
 	Logger *slog.Logger
+}
+
+// packetJob represents a packet processing job for the worker pool.
+type packetJob struct {
+	conn       *net.UDPConn
+	clientAddr *net.UDPAddr
+	data       []byte
 }
 
 // Server is a protocol-agnostic UDP server that manages sessions and
 // proxies datagrams to a backend server using a pluggable parser.
 type Server struct {
-	config   Config
-	parser   parser.Parser
-	handler  handler.Handler
-	sessions *SessionManager
+	config     Config
+	parser     parser.Parser
+	handler    handler.Handler
+	sessions   *SessionManager
+	bufferPool *sync.Pool
+	packetCh   chan packetJob
+	workerWg   sync.WaitGroup
 }
 
 // New creates a new UDP server with the given configuration, parser, and handler.
@@ -72,12 +109,35 @@ func New(cfg Config, p parser.Parser, h handler.Handler) *Server {
 	if cfg.ShutdownTimeout == 0 {
 		cfg.ShutdownTimeout = DefaultShutdownTimeout
 	}
+	if cfg.BufferSize == 0 {
+		cfg.BufferSize = DefaultBufferSize
+	}
+	if cfg.BufferSize > MaxDatagramSize {
+		cfg.BufferSize = MaxDatagramSize
+	}
+	if cfg.WorkerPoolSize == 0 {
+		cfg.WorkerPoolSize = DefaultWorkerPoolSize
+	}
+
+	// Create buffer pool for efficient memory reuse
+	bufferPool := &sync.Pool{
+		New: func() interface{} {
+			buf := make([]byte, cfg.BufferSize)
+			return &buf
+		},
+	}
+
+	// Create packet channel for worker pool
+	// Buffered channel to prevent blocking the reader
+	packetCh := make(chan packetJob, cfg.WorkerPoolSize*2)
 
 	return &Server{
-		config:   cfg,
-		parser:   p,
-		handler:  h,
-		sessions: NewSessionManager(cfg.Logger),
+		config:     cfg,
+		parser:     p,
+		handler:    h,
+		sessions:   NewSessionManager(cfg.Logger, cfg.MaxSessions),
+		bufferPool: bufferPool,
+		packetCh:   packetCh,
 	}
 }
 
@@ -95,9 +155,30 @@ func (s *Server) Listen(ctx context.Context) error {
 	}
 	defer conn.Close()
 
+	// Configure socket buffer sizes if specified
+	if s.config.ReadBufferSize > 0 {
+		if err := conn.SetReadBuffer(s.config.ReadBufferSize); err != nil {
+			s.config.Logger.Warn("failed to set read buffer size",
+				slog.String("error", err.Error()))
+		}
+	}
+	if s.config.WriteBufferSize > 0 {
+		if err := conn.SetWriteBuffer(s.config.WriteBufferSize); err != nil {
+			s.config.Logger.Warn("failed to set write buffer size",
+				slog.String("error", err.Error()))
+		}
+	}
+
 	s.config.Logger.Info("UDP server started",
 		slog.String("address", s.config.Address),
-		slog.Duration("session_timeout", s.config.SessionTimeout))
+		slog.Duration("session_timeout", s.config.SessionTimeout),
+		slog.Int("worker_pool_size", s.config.WorkerPoolSize),
+		slog.Int("buffer_size", s.config.BufferSize))
+
+	// Start worker pool for packet processing
+	workerCtx, workerCancel := context.WithCancel(ctx)
+	defer workerCancel()
+	s.startWorkerPool(workerCtx, conn)
 
 	// Start session cleanup goroutine
 	cleanupCtx, cleanupCancel := context.WithCancel(ctx)
@@ -108,7 +189,6 @@ func (s *Server) Listen(ctx context.Context) error {
 	readDone := make(chan struct{})
 	go func() {
 		defer close(readDone)
-		buffer := make([]byte, MaxDatagramSize)
 
 		for {
 			select {
@@ -117,8 +197,13 @@ func (s *Server) Listen(ctx context.Context) error {
 			default:
 			}
 
+			// Get buffer from pool
+			bufPtr := s.bufferPool.Get().(*[]byte)
+			buffer := *bufPtr
+
 			n, clientAddr, err := conn.ReadFromUDP(buffer)
 			if err != nil {
+				s.bufferPool.Put(bufPtr) // Return buffer to pool
 				select {
 				case <-ctx.Done():
 					// Expected error during shutdown
@@ -130,17 +215,26 @@ func (s *Server) Listen(ctx context.Context) error {
 				}
 			}
 
-			// Process packet in a new goroutine
+			// Make a copy of the data for processing
 			datagram := make([]byte, n)
 			copy(datagram, buffer[:n])
+			s.bufferPool.Put(bufPtr) // Return buffer to pool immediately
 
-			go func(addr *net.UDPAddr, data []byte) {
-				if err := s.handlePacket(ctx, conn, addr, data); err != nil {
-					s.config.Logger.Debug("packet handler error",
-						slog.String("client", addr.String()),
-						slog.String("error", err.Error()))
-				}
-			}(clientAddr, datagram)
+			// Send packet to worker pool (non-blocking)
+			select {
+			case s.packetCh <- packetJob{
+				conn:       conn,
+				clientAddr: clientAddr,
+				data:       datagram,
+			}:
+				// Packet queued successfully
+			case <-ctx.Done():
+				return
+			default:
+				// Worker pool is full, drop packet and log warning
+				s.config.Logger.Warn("worker pool full, dropping packet",
+					slog.String("client", clientAddr.String()))
+			}
 		}
 	}()
 
@@ -156,20 +250,63 @@ func (s *Server) Listen(ctx context.Context) error {
 	// Wait for read loop to finish
 	<-readDone
 
+	// Close packet channel and wait for workers to finish
+	close(s.packetCh)
+	workerCancel()
+	s.workerWg.Wait()
+	s.config.Logger.Info("all workers stopped")
+
 	// Drain sessions with timeout
 	return s.sessions.DrainAll(s.config.ShutdownTimeout, s.handler)
+}
+
+// startWorkerPool starts the worker goroutines for packet processing.
+func (s *Server) startWorkerPool(ctx context.Context, listener *net.UDPConn) {
+	for i := 0; i < s.config.WorkerPoolSize; i++ {
+		s.workerWg.Add(1)
+		go func(workerID int) {
+			defer s.workerWg.Done()
+			s.packetWorker(ctx, listener, workerID)
+		}(i)
+	}
+	s.config.Logger.Info("worker pool started", slog.Int("workers", s.config.WorkerPoolSize))
+}
+
+// packetWorker processes packets from the packet channel.
+func (s *Server) packetWorker(ctx context.Context, listener *net.UDPConn, workerID int) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case job, ok := <-s.packetCh:
+			if !ok {
+				// Channel closed, worker should exit
+				return
+			}
+			if err := s.handlePacket(ctx, listener, job.clientAddr, job.data); err != nil {
+				s.config.Logger.Debug("packet handler error",
+					slog.Int("worker", workerID),
+					slog.String("client", job.clientAddr.String()),
+					slog.String("error", err.Error()))
+			}
+		}
+	}
 }
 
 // handlePacket processes a single UDP packet by:
 // 1. Getting or creating a session for the client
 // 2. Parsing the packet with the protocol parser
 // 3. Forwarding to the backend
-// 4. Starting downstream reader if this is a new session
+// 4. Starting downstream reader if this is a new session.
 func (s *Server) handlePacket(ctx context.Context, listener *net.UDPConn, clientAddr *net.UDPAddr, data []byte) error {
 	// Get or create session
 	sess, isNew, err := s.sessions.GetOrCreate(ctx, clientAddr, s.config.TargetAddress)
 	if err != nil {
-		return fmt.Errorf("failed to get/create session: %w", err)
+		// Session limit reached or other error
+		s.config.Logger.Warn("failed to get/create session",
+			slog.String("client", clientAddr.String()),
+			slog.String("error", err.Error()))
+		return err
 	}
 
 	// Parse packet (upstream: client → backend)
@@ -207,7 +344,6 @@ func (s *Server) readDownstream(sess *Session, listener *net.UDPConn) {
 			slog.String("session", sess.ID))
 	}()
 
-	buffer := make([]byte, MaxDatagramSize)
 	for {
 		select {
 		case <-sess.ctx.Done():
@@ -215,8 +351,13 @@ func (s *Server) readDownstream(sess *Session, listener *net.UDPConn) {
 		default:
 		}
 
+		// Get buffer from pool
+		bufPtr := s.bufferPool.Get().(*[]byte)
+		buffer := *bufPtr
+
 		// Set read deadline to check context periodically
 		if err := sess.Backend.SetReadDeadline(time.Now().Add(s.config.SessionTimeout)); err != nil {
+			s.bufferPool.Put(bufPtr)
 			s.config.Logger.Error("failed to set read deadline",
 				slog.String("session", sess.ID),
 				slog.String("error", err.Error()))
@@ -225,6 +366,7 @@ func (s *Server) readDownstream(sess *Session, listener *net.UDPConn) {
 
 		n, err := sess.Backend.Read(buffer)
 		if err != nil {
+			s.bufferPool.Put(bufPtr)
 			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 				// Check if session is still active
 				if time.Since(sess.GetLastActivity()) > s.config.SessionTimeout {
@@ -253,6 +395,9 @@ func (s *Server) readDownstream(sess *Session, listener *net.UDPConn) {
 				slog.String("error", err.Error()))
 			// Continue processing other packets
 		}
+
+		// Return buffer to pool
+		s.bufferPool.Put(bufPtr)
 	}
 }
 

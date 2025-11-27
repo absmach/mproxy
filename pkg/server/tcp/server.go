@@ -19,10 +19,8 @@ import (
 	"github.com/google/uuid"
 )
 
-var (
-	// ErrShutdownTimeout is returned when graceful shutdown exceeds the configured timeout.
-	ErrShutdownTimeout = errors.New("shutdown timeout exceeded")
-)
+// ErrShutdownTimeout is returned when graceful shutdown exceeds the configured timeout.
+var ErrShutdownTimeout = errors.New("shutdown timeout exceeded")
 
 // Config holds the TCP server configuration.
 type Config struct {
@@ -40,6 +38,34 @@ type Config struct {
 	// forcefully closed.
 	ShutdownTimeout time.Duration
 
+	// MaxConnections is the maximum number of concurrent connections allowed.
+	// If 0, no limit is enforced. Default is 0 (unlimited).
+	MaxConnections int
+
+	// ReadTimeout is the maximum duration for reading from a connection.
+	// If 0, no read timeout is set. Default is 60 seconds.
+	ReadTimeout time.Duration
+
+	// WriteTimeout is the maximum duration for writing to a connection.
+	// If 0, no write timeout is set. Default is 60 seconds.
+	WriteTimeout time.Duration
+
+	// IdleTimeout is the maximum duration a connection can be idle.
+	// If 0, connections never timeout due to idleness. Default is 300 seconds (5 min).
+	IdleTimeout time.Duration
+
+	// BufferSize is the size of read/write buffers in bytes.
+	// If 0, uses default size of 4KB.
+	BufferSize int
+
+	// TCPKeepAlive enables TCP keepalive if > 0. The value specifies the keepalive period.
+	// Default is 15 seconds.
+	TCPKeepAlive time.Duration
+
+	// DisableNoDelay controls TCP_NODELAY socket option.
+	// If false (default), Nagle's algorithm is disabled for lower latency.
+	DisableNoDelay bool
+
 	// Logger for server events
 	Logger *slog.Logger
 }
@@ -47,11 +73,13 @@ type Config struct {
 // Server is a protocol-agnostic TCP server that accepts connections and
 // proxies them to a backend server using a pluggable parser.
 type Server struct {
-	config  Config
-	parser  parser.Parser
-	handler handler.Handler
-	wg      sync.WaitGroup
-	mu      sync.Mutex
+	config     Config
+	parser     parser.Parser
+	handler    handler.Handler
+	wg         sync.WaitGroup
+	mu         sync.Mutex
+	bufferPool *sync.Pool
+	connSem    chan struct{} // semaphore for connection limiting
 }
 
 // New creates a new TCP server with the given configuration, parser, and handler.
@@ -62,11 +90,42 @@ func New(cfg Config, p parser.Parser, h handler.Handler) *Server {
 	if cfg.ShutdownTimeout == 0 {
 		cfg.ShutdownTimeout = 30 * time.Second
 	}
+	if cfg.ReadTimeout == 0 {
+		cfg.ReadTimeout = 60 * time.Second
+	}
+	if cfg.WriteTimeout == 0 {
+		cfg.WriteTimeout = 60 * time.Second
+	}
+	if cfg.IdleTimeout == 0 {
+		cfg.IdleTimeout = 300 * time.Second
+	}
+	if cfg.BufferSize == 0 {
+		cfg.BufferSize = 4096
+	}
+	if cfg.TCPKeepAlive == 0 {
+		cfg.TCPKeepAlive = 15 * time.Second
+	}
+
+	// Create buffer pool for efficient memory reuse
+	bufferPool := &sync.Pool{
+		New: func() interface{} {
+			buf := make([]byte, cfg.BufferSize)
+			return &buf
+		},
+	}
+
+	// Create connection semaphore if limit is set
+	var connSem chan struct{}
+	if cfg.MaxConnections > 0 {
+		connSem = make(chan struct{}, cfg.MaxConnections)
+	}
 
 	return &Server{
-		config:  cfg,
-		parser:  p,
-		handler: h,
+		config:     cfg,
+		parser:     p,
+		handler:    h,
+		bufferPool: bufferPool,
+		connSem:    connSem,
 	}
 }
 
@@ -114,9 +173,44 @@ func (s *Server) Listen(ctx context.Context) error {
 				}
 			}
 
+			// Apply connection limit if configured
+			if s.connSem != nil {
+				select {
+				case s.connSem <- struct{}{}:
+					// Acquired semaphore slot
+				case <-ctx.Done():
+					conn.Close()
+					return
+				default:
+					// Connection limit reached, reject connection
+					s.config.Logger.Warn("connection limit reached, rejecting connection",
+						slog.String("remote", conn.RemoteAddr().String()))
+					conn.Close()
+					continue
+				}
+			}
+
+			// Configure TCP connection options
+			if tcpConn, ok := conn.(*net.TCPConn); ok {
+				if err := s.configureTCPConn(tcpConn); err != nil {
+					s.config.Logger.Error("failed to configure TCP connection",
+						slog.String("error", err.Error()))
+					if s.connSem != nil {
+						<-s.connSem
+					}
+					conn.Close()
+					continue
+				}
+			}
+
 			s.wg.Add(1)
 			go func() {
 				defer s.wg.Done()
+				defer func() {
+					if s.connSem != nil {
+						<-s.connSem // Release semaphore slot
+					}
+				}()
 				if err := s.handleConn(connCtx, conn); err != nil && !errors.Is(err, io.EOF) {
 					s.config.Logger.Debug("connection handler error",
 						slog.String("remote", conn.RemoteAddr().String()),
@@ -167,7 +261,7 @@ func (s *Server) Listen(ctx context.Context) error {
 // 1. Creating a handler context with connection metadata
 // 2. Dialing the backend server
 // 3. Starting bidirectional streaming with the parser
-// 4. Cleaning up both connections when done
+// 4. Cleaning up both connections when done.
 func (s *Server) handleConn(ctx context.Context, inbound net.Conn) error {
 	defer inbound.Close()
 
@@ -251,9 +345,45 @@ func (s *Server) stream(ctx context.Context, r, w net.Conn, dir parser.Direction
 		default:
 		}
 
+		// Set read deadline if configured
+		if s.config.ReadTimeout > 0 {
+			if err := r.SetReadDeadline(time.Now().Add(s.config.ReadTimeout)); err != nil {
+				return fmt.Errorf("failed to set read deadline: %w", err)
+			}
+		}
+
+		// Set write deadline if configured
+		if s.config.WriteTimeout > 0 {
+			if err := w.SetWriteDeadline(time.Now().Add(s.config.WriteTimeout)); err != nil {
+				return fmt.Errorf("failed to set write deadline: %w", err)
+			}
+		}
+
 		// Parse one packet
 		if err := s.parser.Parse(ctx, r, w, dir, s.handler, hctx); err != nil {
 			return err
 		}
 	}
+}
+
+// configureTCPConn sets TCP socket options for optimal performance and resilience.
+func (s *Server) configureTCPConn(conn *net.TCPConn) error {
+	// Enable TCP keepalive to detect dead connections
+	if s.config.TCPKeepAlive > 0 {
+		if err := conn.SetKeepAlive(true); err != nil {
+			return fmt.Errorf("failed to enable keepalive: %w", err)
+		}
+		if err := conn.SetKeepAlivePeriod(s.config.TCPKeepAlive); err != nil {
+			return fmt.Errorf("failed to set keepalive period: %w", err)
+		}
+	}
+
+	// Disable Nagle's algorithm for lower latency unless explicitly disabled
+	if !s.config.DisableNoDelay {
+		if err := conn.SetNoDelay(true); err != nil {
+			return fmt.Errorf("failed to set TCP_NODELAY: %w", err)
+		}
+	}
+
+	return nil
 }

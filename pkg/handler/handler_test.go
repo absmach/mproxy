@@ -75,7 +75,7 @@ func TestNoopHandler(t *testing.T) {
 	}
 }
 
-// MockHandler is a mock implementation for testing
+// MockHandler is a mock implementation for testing.
 type MockHandler struct {
 	ConnectErr     error
 	PublishErr     error
@@ -84,13 +84,13 @@ type MockHandler struct {
 	OnPublishErr   error
 	OnSubscribeErr error
 
-	ConnectCalled     bool
-	PublishCalled     bool
-	SubscribeCalled   bool
-	OnConnectCalled   bool
-	OnPublishCalled   bool
-	OnSubscribeCalled bool
-	OnUnsubCalled     bool
+	ConnectCalled      bool
+	PublishCalled      bool
+	SubscribeCalled    bool
+	OnConnectCalled    bool
+	OnPublishCalled    bool
+	OnSubscribeCalled  bool
+	OnUnsubCalled      bool
 	OnDisconnectCalled bool
 
 	LastTopic   string
