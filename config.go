@@ -1,12 +1,12 @@
 // Copyright (c) Abstract Machines
 // SPDX-License-Identifier: Apache-2.0
 
-package mgate
+package mproxy
 
 import (
 	"crypto/tls"
 
-	mptls "github.com/absmach/mgate/pkg/tls"
+	mptls "github.com/absmach/mproxy/pkg/tls"
 	"github.com/caarlos0/env/v11"
 	"github.com/pion/dtls/v3"
 )
