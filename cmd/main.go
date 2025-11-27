@@ -121,9 +121,26 @@ func startMQTTProxy(g *errgroup.Group, ctx context.Context, envPrefix string, ha
 		return err
 	}
 
-	// Skip if port is not configured
+	// Set default values based on the server type
 	if cfg.Port == "" {
-		return fmt.Errorf("port not configured")
+		switch envPrefix {
+		case mqttWithoutTLS:
+			cfg.Port = "1884"
+		case mqttWithTLS:
+			cfg.Port = "8883"
+		case mqttWithmTLS:
+			cfg.Port = "8884"
+		default:
+			return fmt.Errorf("port not configured")
+		}
+	}
+
+	if cfg.TargetHost == "" {
+		cfg.TargetHost = "localhost"
+	}
+
+	if cfg.TargetPort == "" {
+		cfg.TargetPort = "1883"
 	}
 
 	mqttCfg := proxy.MQTTConfig{
@@ -145,7 +162,7 @@ func startMQTTProxy(g *errgroup.Group, ctx context.Context, envPrefix string, ha
 		return mqttProxy.Listen(ctx)
 	})
 
-	logger.Info("MQTT proxy started", slog.String("prefix", envPrefix))
+	logger.Info("MQTT proxy started", slog.String("prefix", envPrefix), slog.String("port", cfg.Port))
 	return nil
 }
 
@@ -155,9 +172,26 @@ func startWebSocketProxy(g *errgroup.Group, ctx context.Context, envPrefix strin
 		return err
 	}
 
-	// Skip if port is not configured
+	// Set default values based on the server type
 	if cfg.Port == "" {
-		return fmt.Errorf("port not configured")
+		switch envPrefix {
+		case mqttWSWithoutTLS:
+			cfg.Port = "8083"
+		case mqttWSWithTLS:
+			cfg.Port = "8084"
+		case mqttWSWithmTLS:
+			cfg.Port = "8085"
+		default:
+			return fmt.Errorf("port not configured")
+		}
+	}
+
+	if cfg.TargetHost == "" {
+		cfg.TargetHost = "localhost"
+	}
+
+	if cfg.TargetPort == "" {
+		cfg.TargetPort = "8000"
 	}
 
 	// Build WebSocket target URL
@@ -186,7 +220,7 @@ func startWebSocketProxy(g *errgroup.Group, ctx context.Context, envPrefix strin
 		return wsProxy.Listen(ctx)
 	})
 
-	logger.Info("WebSocket proxy started", slog.String("prefix", envPrefix))
+	logger.Info("WebSocket proxy started", slog.String("prefix", envPrefix), slog.String("port", cfg.Port))
 	return nil
 }
 
@@ -196,9 +230,26 @@ func startHTTPProxy(g *errgroup.Group, ctx context.Context, envPrefix string, ha
 		return err
 	}
 
-	// Skip if port is not configured
+	// Set default values based on the server type
 	if cfg.Port == "" {
-		return fmt.Errorf("port not configured")
+		switch envPrefix {
+		case httpWithoutTLS:
+			cfg.Port = "8086"
+		case httpWithTLS:
+			cfg.Port = "8087"
+		case httpWithmTLS:
+			cfg.Port = "8088"
+		default:
+			return fmt.Errorf("port not configured")
+		}
+	}
+
+	if cfg.TargetHost == "" {
+		cfg.TargetHost = "localhost"
+	}
+
+	if cfg.TargetPort == "" {
+		cfg.TargetPort = "8888"
 	}
 
 	// Build HTTP target URL
@@ -226,7 +277,7 @@ func startHTTPProxy(g *errgroup.Group, ctx context.Context, envPrefix string, ha
 		return httpProxy.Listen(ctx)
 	})
 
-	logger.Info("HTTP proxy started", slog.String("prefix", envPrefix))
+	logger.Info("HTTP proxy started", slog.String("prefix", envPrefix), slog.String("port", cfg.Port))
 	return nil
 }
 
@@ -236,9 +287,24 @@ func startCoAPProxy(g *errgroup.Group, ctx context.Context, envPrefix string, ha
 		return err
 	}
 
-	// Skip if port is not configured
+	// Set default values based on the server type
 	if cfg.Port == "" {
-		return fmt.Errorf("port not configured")
+		switch envPrefix {
+		case coapWithoutDTLS:
+			cfg.Port = "5682"
+		case coapWithDTLS:
+			cfg.Port = "5684"
+		default:
+			return fmt.Errorf("port not configured")
+		}
+	}
+
+	if cfg.TargetHost == "" {
+		cfg.TargetHost = "localhost"
+	}
+
+	if cfg.TargetPort == "" {
+		cfg.TargetPort = "5683"
 	}
 
 	coapCfg := proxy.CoAPConfig{
@@ -260,7 +326,7 @@ func startCoAPProxy(g *errgroup.Group, ctx context.Context, envPrefix string, ha
 		return coapProxy.Listen(ctx)
 	})
 
-	logger.Info("CoAP proxy started", slog.String("prefix", envPrefix))
+	logger.Info("CoAP proxy started", slog.String("prefix", envPrefix), slog.String("port", cfg.Port))
 	return nil
 }
 
