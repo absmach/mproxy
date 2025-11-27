@@ -80,12 +80,26 @@ func (p *Parser) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Read body for publish authorization
-	payload, err := io.ReadAll(r.Body)
+	// Read body for publish authorization with size limit
+	// Default: 10MB max body size to prevent memory exhaustion
+	const maxBodySize = 10 * 1024 * 1024 // 10MB
+	limitedReader := io.LimitReader(r.Body, maxBodySize+1) // +1 to detect if exceeded
+
+	payload, err := io.ReadAll(limitedReader)
 	if err != nil {
 		p.logger.Error("failed to read request body",
 			slog.String("error", err.Error()))
 		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+
+	// Check if size limit exceeded
+	if len(payload) > maxBodySize {
+		p.logger.Warn("request body size limit exceeded",
+			slog.String("remote", r.RemoteAddr),
+			slog.Int("size", len(payload)),
+			slog.Int("limit", maxBodySize))
+		http.Error(w, "Request Entity Too Large", http.StatusRequestEntityTooLarge)
 		return
 	}
 

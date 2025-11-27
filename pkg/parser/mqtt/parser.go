@@ -114,7 +114,8 @@ func (p *Parser) handleConnect(ctx context.Context, packet *packets.ConnectPacke
 
 	// Authorize connection
 	if err := h.AuthConnect(ctx, hctx); err != nil {
-		// TODO: Send CONNACK with appropriate return code
+		// Return authorization error - caller should send CONNACK
+		// The TCP server will close the connection, triggering proper error handling
 		return fmt.Errorf("connection authorization failed: %w", err)
 	}
 
