@@ -6,6 +6,7 @@ package udp
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -385,7 +386,7 @@ func TestSessionManager_ForceCloseAll(t *testing.T) {
 
 	// Create multiple sessions
 	for i := 0; i < 3; i++ {
-		addr, _ := net.ResolveUDPAddr("udp", "127.0.0.1:"+string(rune(50000+i)))
+		addr, _ := net.ResolveUDPAddr("udp", fmt.Sprintf("127.0.0.1:%d", 50000+i))
 		sm.GetOrCreate(context.Background(), addr, targetAddr)
 	}
 
