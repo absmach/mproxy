@@ -69,6 +69,12 @@ func stream(ctx context.Context, dir Direction, r, w net.Conn, h Handler, preIc,
 		switch dir {
 		case Up:
 			if err = authorize(ctx, pkt, h); err != nil {
+				if _, ok := pkt.(*packets.PublishPacket); ok {
+					pkt = packets.NewControlPacket(packets.Disconnect)
+					if wErr := pkt.Write(w); wErr != nil {
+						err = errors.Join(err, wErr)
+					}
+				}
 				errs <- wrap(ctx, err, dir)
 				return
 			}
