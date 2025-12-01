@@ -120,7 +120,7 @@ func (p *Proxy) Listen(ctx context.Context) error {
 	}
 
 	status := mptls.SecurityStatus(p.config.DTLSConfig)
-	p.logger.Info(fmt.Sprintf("COAP proxy server started at %s  with %s", net.JoinHostPort(p.config.Host, p.config.Port), status))
+	p.logger.Info(fmt.Sprintf("COAP proxy server started at %s with %s", net.JoinHostPort(p.config.Host, p.config.Port), status))
 
 	if err := g.Wait(); err != nil {
 		p.logger.Info(fmt.Sprintf("COAP proxy server at %s exiting with errors", net.JoinHostPort(p.config.Host, p.config.Port)), slog.String("error", err.Error()))
