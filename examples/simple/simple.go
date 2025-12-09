@@ -5,88 +5,99 @@ package simple
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 
-	"github.com/absmach/mgate/pkg/session"
+	"github.com/absmach/mproxy/pkg/handler"
 )
 
-var errSessionMissing = errors.New("session is missing")
+var _ handler.Handler = (*Handler)(nil)
 
-var _ session.Handler = (*Handler)(nil)
-
-// Handler implements mqtt.Handler interface.
+// Handler is a simple example handler that logs all events.
 type Handler struct {
 	logger *slog.Logger
 }
 
-// New creates new Event entity.
+// New creates a new example handler.
 func New(logger *slog.Logger) *Handler {
+	if logger == nil {
+		logger = slog.Default()
+	}
 	return &Handler{
 		logger: logger,
 	}
 }
 
-// prior forwarding to the MQTT broker.
-func (h *Handler) AuthConnect(ctx context.Context) error {
-	return h.logAction(ctx, "AuthConnect", nil, nil)
+// AuthConnect authorizes a client connection.
+func (h *Handler) AuthConnect(ctx context.Context, hctx *handler.Context) error {
+	h.logger.Info("AuthConnect",
+		slog.String("session", hctx.SessionID),
+		slog.String("username", hctx.Username),
+		slog.String("client_id", hctx.ClientID),
+		slog.String("remote", hctx.RemoteAddr),
+		slog.String("protocol", hctx.Protocol))
+	return nil
 }
 
-// prior forwarding to the MQTT broker.
-func (h *Handler) AuthPublish(ctx context.Context, topic *string, payload *[]byte) error {
-	return h.logAction(ctx, "AuthPublish", &[]string{*topic}, payload)
+// AuthPublish authorizes a publish operation.
+func (h *Handler) AuthPublish(ctx context.Context, hctx *handler.Context, topic *string, payload *[]byte) error {
+	h.logger.Info("AuthPublish",
+		slog.String("session", hctx.SessionID),
+		slog.String("username", hctx.Username),
+		slog.String("topic", *topic),
+		slog.Int("payload_size", len(*payload)))
+	return nil
 }
 
-// prior forwarding to the MQTT broker.
-func (h *Handler) AuthSubscribe(ctx context.Context, topics *[]string) error {
-	return h.logAction(ctx, "AuthSubscribe", topics, nil)
+// AuthSubscribe authorizes a subscribe operation.
+func (h *Handler) AuthSubscribe(ctx context.Context, hctx *handler.Context, topics *[]string) error {
+	h.logger.Info("AuthSubscribe",
+		slog.String("session", hctx.SessionID),
+		slog.String("username", hctx.Username),
+		slog.Any("topics", *topics))
+	return nil
 }
 
-// Connect - after client successfully connected.
-func (h *Handler) Connect(ctx context.Context) error {
-	return h.logAction(ctx, "Connect", nil, nil)
+// OnConnect is called after successful connection.
+func (h *Handler) OnConnect(ctx context.Context, hctx *handler.Context) error {
+	h.logger.Info("OnConnect",
+		slog.String("session", hctx.SessionID),
+		slog.String("username", hctx.Username),
+		slog.String("client_id", hctx.ClientID))
+	return nil
 }
 
-// Publish - after client successfully published.
-func (h *Handler) Publish(ctx context.Context, topic *string, payload *[]byte) error {
-	return h.logAction(ctx, "Publish", &[]string{*topic}, payload)
+// OnPublish is called after successful publish.
+func (h *Handler) OnPublish(ctx context.Context, hctx *handler.Context, topic string, payload []byte) error {
+	h.logger.Info("OnPublish",
+		slog.String("session", hctx.SessionID),
+		slog.String("username", hctx.Username),
+		slog.String("topic", topic),
+		slog.Int("payload_size", len(payload)))
+	return nil
 }
 
-// Subscribe - after client successfully subscribed.
-func (h *Handler) Subscribe(ctx context.Context, topics *[]string) error {
-	return h.logAction(ctx, "Subscribe", topics, nil)
+// OnSubscribe is called after successful subscription.
+func (h *Handler) OnSubscribe(ctx context.Context, hctx *handler.Context, topics []string) error {
+	h.logger.Info("OnSubscribe",
+		slog.String("session", hctx.SessionID),
+		slog.String("username", hctx.Username),
+		slog.Any("topics", topics))
+	return nil
 }
 
-// Unsubscribe - after client unsubscribed.
-func (h *Handler) Unsubscribe(ctx context.Context, topics *[]string) error {
-	return h.logAction(ctx, "Unsubscribe", topics, nil)
+// OnUnsubscribe is called after unsubscription.
+func (h *Handler) OnUnsubscribe(ctx context.Context, hctx *handler.Context, topics []string) error {
+	h.logger.Info("OnUnsubscribe",
+		slog.String("session", hctx.SessionID),
+		slog.String("username", hctx.Username),
+		slog.Any("topics", topics))
+	return nil
 }
 
-// Disconnect on connection lost.
-func (h *Handler) Disconnect(ctx context.Context) error {
-	return h.logAction(ctx, "Disconnect", nil, nil)
-}
-
-func (h *Handler) logAction(ctx context.Context, action string, topics *[]string, payload *[]byte) error {
-	s, ok := session.FromContext(ctx)
-	args := []interface{}{
-		slog.Group("session", slog.String("id", s.ID), slog.String("username", s.Username)),
-	}
-	if s.Cert.Subject.CommonName != "" {
-		args = append(args, slog.Group("cert", slog.String("cn", s.Cert.Subject.CommonName)))
-	}
-	if topics != nil {
-		args = append(args, slog.Any("topics", *topics))
-	}
-	if payload != nil {
-		args = append(args, slog.Any("payload", *payload))
-	}
-	if !ok {
-		args = append(args, slog.Any("error", errSessionMissing))
-		h.logger.Error(action+"() failed to complete", args...)
-		return errSessionMissing
-	}
-	h.logger.Info(action+"() completed successfully", args...)
-
+// OnDisconnect is called when a client disconnects.
+func (h *Handler) OnDisconnect(ctx context.Context, hctx *handler.Context) error {
+	h.logger.Info("OnDisconnect",
+		slog.String("session", hctx.SessionID),
+		slog.String("username", hctx.Username))
 	return nil
 }

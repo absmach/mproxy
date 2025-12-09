@@ -1,24 +1,24 @@
 // Copyright (c) Abstract Machines
 // SPDX-License-Identifier: Apache-2.0
 
-package mgate
+package mproxy
 
 import (
 	"crypto/tls"
 
-	mptls "github.com/absmach/mgate/pkg/tls"
+	mptls "github.com/absmach/mproxy/pkg/tls"
 	"github.com/caarlos0/env/v11"
 	"github.com/pion/dtls/v3"
 )
 
 type Config struct {
-	Host           string `env:"HOST"                     envDefault:""`
-	Port           string `env:"PORT,required"            envDefault:""`
-	PathPrefix     string `env:"PATH_PREFIX"              envDefault:""`
-	TargetHost     string `env:"TARGET_HOST,required"     envDefault:""`
-	TargetPort     string `env:"TARGET_PORT,required"     envDefault:""`
-	TargetProtocol string `env:"TARGET_PROTOCOL,required" envDefault:""`
-	TargetPath     string `env:"TARGET_PATH"              envDefault:""`
+	Host           string `env:"HOST"           envDefault:""`
+	Port           string `env:"PORT"           envDefault:""`
+	PathPrefix     string `env:"PATH_PREFIX"    envDefault:""`
+	TargetHost     string `env:"TARGET_HOST"    envDefault:""`
+	TargetPort     string `env:"TARGET_PORT"    envDefault:""`
+	TargetProtocol string `env:"TARGET_PROTOCOL" envDefault:""`
+	TargetPath     string `env:"TARGET_PATH"    envDefault:""`
 	TLSConfig      *tls.Config
 	DTLSConfig     *dtls.Config
 }
