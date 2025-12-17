@@ -8,7 +8,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/joho/godotenv v1.5.1
-	github.com/pion/dtls/v3 v3.0.8
+	github.com/pion/dtls/v3 v3.0.9
 	github.com/plgd-dev/go-coap/v3 v3.4.1
 	github.com/prometheus/client_golang v1.20.5
 	golang.org/x/crypto v0.45.0
