@@ -13,6 +13,8 @@ import (
 	"github.com/absmach/mproxy/pkg/ratelimit"
 )
 
+const protocolMQTT = "mqtt"
+
 // RateLimitedHandler wraps a handler with rate limiting.
 type RateLimitedHandler struct {
 	handler          handler.Handler
@@ -97,13 +99,10 @@ type InstrumentedHandler struct {
 func (h *InstrumentedHandler) AuthConnect(ctx context.Context, hctx *handler.Context) error {
 	start := time.Now()
 	h.metrics.AuthAttempts.WithLabelValues(hctx.Protocol, "connect").Inc()
-
 	err := h.handler.AuthConnect(ctx, hctx)
-
 	if err != nil {
 		h.metrics.AuthFailures.WithLabelValues(hctx.Protocol, "connect", "unauthorized").Inc()
 	}
-
 	duration := time.Since(start).Seconds()
 	h.metrics.RequestDuration.WithLabelValues(hctx.Protocol, "connect").Observe(duration)
 
@@ -114,17 +113,13 @@ func (h *InstrumentedHandler) AuthConnect(ctx context.Context, hctx *handler.Con
 func (h *InstrumentedHandler) AuthPublish(ctx context.Context, hctx *handler.Context, topic *string, payload *[]byte) error {
 	start := time.Now()
 	h.metrics.AuthAttempts.WithLabelValues(hctx.Protocol, "publish").Inc()
-
 	if payload != nil {
 		h.metrics.RequestSize.WithLabelValues(hctx.Protocol).Observe(float64(len(*payload)))
 	}
-
 	err := h.handler.AuthPublish(ctx, hctx, topic, payload)
-
 	if err != nil {
 		h.metrics.AuthFailures.WithLabelValues(hctx.Protocol, "publish", "unauthorized").Inc()
 	}
-
 	duration := time.Since(start).Seconds()
 	h.metrics.RequestDuration.WithLabelValues(hctx.Protocol, "publish").Observe(duration)
 
@@ -141,13 +136,10 @@ func (h *InstrumentedHandler) AuthPublish(ctx context.Context, hctx *handler.Con
 func (h *InstrumentedHandler) AuthSubscribe(ctx context.Context, hctx *handler.Context, topics *[]string) error {
 	start := time.Now()
 	h.metrics.AuthAttempts.WithLabelValues(hctx.Protocol, "subscribe").Inc()
-
 	err := h.handler.AuthSubscribe(ctx, hctx, topics)
-
 	if err != nil {
 		h.metrics.AuthFailures.WithLabelValues(hctx.Protocol, "subscribe", "unauthorized").Inc()
 	}
-
 	duration := time.Since(start).Seconds()
 	h.metrics.RequestDuration.WithLabelValues(hctx.Protocol, "subscribe").Observe(duration)
 
@@ -170,7 +162,7 @@ func (h *InstrumentedHandler) OnConnect(ctx context.Context, hctx *handler.Conte
 
 // OnPublish implements handler.Handler with metrics.
 func (h *InstrumentedHandler) OnPublish(ctx context.Context, hctx *handler.Context, topic string, payload []byte) error {
-	if hctx.Protocol == "mqtt" {
+	if hctx.Protocol == protocolMQTT {
 		h.metrics.MQTTPackets.WithLabelValues("publish", "upstream").Inc()
 	}
 
@@ -179,7 +171,7 @@ func (h *InstrumentedHandler) OnPublish(ctx context.Context, hctx *handler.Conte
 
 // OnSubscribe implements handler.Handler with metrics.
 func (h *InstrumentedHandler) OnSubscribe(ctx context.Context, hctx *handler.Context, topics []string) error {
-	if hctx.Protocol == "mqtt" {
+	if hctx.Protocol == protocolMQTT {
 		h.metrics.MQTTPackets.WithLabelValues("subscribe", "upstream").Inc()
 	}
 
@@ -188,7 +180,7 @@ func (h *InstrumentedHandler) OnSubscribe(ctx context.Context, hctx *handler.Con
 
 // OnUnsubscribe implements handler.Handler with metrics.
 func (h *InstrumentedHandler) OnUnsubscribe(ctx context.Context, hctx *handler.Context, topics []string) error {
-	if hctx.Protocol == "mqtt" {
+	if hctx.Protocol == protocolMQTT {
 		h.metrics.MQTTPackets.WithLabelValues("unsubscribe", "upstream").Inc()
 	}
 

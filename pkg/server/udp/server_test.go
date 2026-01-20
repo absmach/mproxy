@@ -104,7 +104,9 @@ func TestUDPServer_ListenAndReceive(t *testing.T) {
 			if err != nil {
 				return
 			}
-			backendConn.WriteToUDP(buf[:n], addr)
+			if _, err := backendConn.WriteToUDP(buf[:n], addr); err != nil {
+				return
+			}
 		}
 	}()
 
@@ -179,7 +181,10 @@ func TestUDPServer_SessionCreation(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	go server.Listen(ctx)
+	serverErr := make(chan error, 1)
+	go func() {
+		serverErr <- server.Listen(ctx)
+	}()
 	time.Sleep(100 * time.Millisecond)
 
 	// Initially no sessions
@@ -190,6 +195,16 @@ func TestUDPServer_SessionCreation(t *testing.T) {
 	// Note: We can't easily test session creation without actually sending
 	// UDP packets to the server, which would require knowing the server's
 	// actual port. This is tested in integration tests.
+	t.Cleanup(func() {
+		select {
+		case err := <-serverErr:
+			if err != nil && err != context.Canceled {
+				t.Logf("Server stopped with error: %v", err)
+			}
+		case <-time.After(2 * time.Second):
+			t.Log("Server shutdown timeout")
+		}
+	})
 }
 
 func TestUDPServer_InvalidAddress(t *testing.T) {
@@ -360,7 +375,7 @@ func TestSessionManager_Cleanup(t *testing.T) {
 	sess.mu.Unlock()
 
 	// Run cleanup
-	sm.cleanupExpired(1*time.Minute, mockH)
+	sm.cleanupExpired(context.Background(), 1*time.Minute, mockH)
 
 	// Session should be removed
 	if sm.Count() != 0 {
@@ -387,7 +402,9 @@ func TestSessionManager_ForceCloseAll(t *testing.T) {
 	// Create multiple sessions
 	for i := 0; i < 3; i++ {
 		addr, _ := net.ResolveUDPAddr("udp", fmt.Sprintf("127.0.0.1:%d", 50000+i))
-		sm.GetOrCreate(context.Background(), addr, targetAddr)
+		if _, _, err := sm.GetOrCreate(context.Background(), addr, targetAddr); err != nil {
+			t.Fatalf("Failed to create session: %v", err)
+		}
 	}
 
 	if sm.Count() != 3 {
@@ -395,7 +412,7 @@ func TestSessionManager_ForceCloseAll(t *testing.T) {
 	}
 
 	// Force close all
-	sm.ForceCloseAll(mockH)
+	sm.ForceCloseAll(context.Background(), mockH)
 
 	if sm.Count() != 0 {
 		t.Errorf("Expected 0 sessions after force close, got %d", sm.Count())
@@ -450,7 +467,9 @@ func TestUDPServer_ShutdownTimeout(t *testing.T) {
 
 	// Create a session manually
 	clientAddr, _ := net.ResolveUDPAddr("udp", "127.0.0.1:54321")
-	server.sessions.GetOrCreate(context.Background(), clientAddr, cfg.TargetAddress)
+	if _, _, err := server.sessions.GetOrCreate(context.Background(), clientAddr, cfg.TargetAddress); err != nil {
+		t.Fatalf("Failed to create session: %v", err)
+	}
 
 	// Trigger shutdown
 	cancel()
@@ -490,11 +509,24 @@ func TestUDPServer_ParseError(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go server.Listen(ctx)
+	serverErr := make(chan error, 1)
+	go func() {
+		serverErr <- server.Listen(ctx)
+	}()
 	time.Sleep(100 * time.Millisecond)
 
 	// Server should handle parse errors gracefully
 	// and continue running
+	t.Cleanup(func() {
+		select {
+		case err := <-serverErr:
+			if err != nil && err != context.Canceled {
+				t.Logf("Server stopped with error: %v", err)
+			}
+		case <-time.After(2 * time.Second):
+			t.Log("Server shutdown timeout")
+		}
+	})
 }
 
 func TestUDPServer_SessionLimit(t *testing.T) {
@@ -524,10 +556,21 @@ func TestUDPServer_SessionLimit(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go server.Listen(ctx)
+	serverErr := make(chan error, 1)
+	go func() {
+		serverErr <- server.Listen(ctx)
+	}()
 	time.Sleep(100 * time.Millisecond)
 
 	cancel()
+	select {
+	case err := <-serverErr:
+		if err != nil && err != context.Canceled {
+			t.Logf("Server stopped with error: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Log("Server shutdown timeout")
+	}
 }
 
 func TestUDPServer_WorkerPool(t *testing.T) {
@@ -567,11 +610,22 @@ func TestUDPServer_WorkerPool(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go server.Listen(ctx)
+	serverErr := make(chan error, 1)
+	go func() {
+		serverErr <- server.Listen(ctx)
+	}()
 	time.Sleep(100 * time.Millisecond)
 
 	cancel()
 	time.Sleep(100 * time.Millisecond)
+	select {
+	case err := <-serverErr:
+		if err != nil && err != context.Canceled {
+			t.Logf("Server stopped with error: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Log("Server shutdown timeout")
+	}
 }
 
 func TestUDPServer_BufferPool(t *testing.T) {

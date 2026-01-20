@@ -10,18 +10,16 @@ import (
 	"time"
 )
 
-var (
-	// ErrRateLimitExceeded is returned when rate limit is exceeded.
-	ErrRateLimitExceeded = errors.New("rate limit exceeded")
-)
+// ErrRateLimitExceeded is returned when rate limit is exceeded.
+var ErrRateLimitExceeded = errors.New("rate limit exceeded")
 
 // TokenBucket implements the token bucket algorithm for rate limiting.
 type TokenBucket struct {
-	mu           sync.Mutex
-	capacity     int64
-	tokens       int64
-	refillRate   int64 // tokens per second
-	lastRefill   time.Time
+	mu         sync.Mutex
+	capacity   int64
+	tokens     int64
+	refillRate int64 // tokens per second
+	lastRefill time.Time
 }
 
 // NewTokenBucket creates a new token bucket rate limiter.

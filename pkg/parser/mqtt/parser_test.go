@@ -14,6 +14,11 @@ import (
 	"github.com/eclipse/paho.mqtt.golang/packets"
 )
 
+const (
+	testClientID = "test-client"
+	testTopic    = "test/topic"
+)
+
 type mockHandler struct {
 	connectErr   error
 	publishErr   error
@@ -78,7 +83,7 @@ func TestMQTTParser_ParseConnect(t *testing.T) {
 
 	// Create CONNECT packet
 	connectPkt := packets.NewControlPacket(packets.Connect).(*packets.ConnectPacket)
-	connectPkt.ClientIdentifier = "test-client"
+	connectPkt.ClientIdentifier = testClientID
 	connectPkt.Username = "testuser"
 	connectPkt.Password = []byte("testpass")
 	connectPkt.UsernameFlag = true
@@ -107,8 +112,8 @@ func TestMQTTParser_ParseConnect(t *testing.T) {
 	}
 
 	// Verify credentials were extracted and passed to handler
-	if mock.lastHctx.ClientID != "test-client" {
-		t.Errorf("Expected ClientID 'test-client', got '%s'", mock.lastHctx.ClientID)
+	if mock.lastHctx.ClientID != testClientID {
+		t.Errorf("Expected ClientID '%s', got '%s'", testClientID, mock.lastHctx.ClientID)
 	}
 	if mock.lastHctx.Username != "testuser" {
 		t.Errorf("Expected Username 'testuser', got '%s'", mock.lastHctx.Username)
@@ -129,7 +134,7 @@ func TestMQTTParser_ParsePublish(t *testing.T) {
 
 	// Create PUBLISH packet
 	publishPkt := packets.NewControlPacket(packets.Publish).(*packets.PublishPacket)
-	publishPkt.TopicName = "test/topic"
+	publishPkt.TopicName = testTopic
 	publishPkt.Payload = []byte("test payload")
 	publishPkt.Qos = 0
 
@@ -156,8 +161,8 @@ func TestMQTTParser_ParsePublish(t *testing.T) {
 	}
 
 	// Verify topic and payload were captured
-	if mock.lastTopic != "test/topic" {
-		t.Errorf("Expected topic 'test/topic', got '%s'", mock.lastTopic)
+	if mock.lastTopic != testTopic {
+		t.Errorf("Expected topic '%s', got '%s'", testTopic, mock.lastTopic)
 	}
 	if string(mock.lastPayload) != "test payload" {
 		t.Errorf("Expected payload 'test payload', got '%s'", mock.lastPayload)
@@ -269,7 +274,7 @@ func TestMQTTParser_AuthError(t *testing.T) {
 
 	// Create CONNECT packet
 	connectPkt := packets.NewControlPacket(packets.Connect).(*packets.ConnectPacket)
-	connectPkt.ClientIdentifier = "test-client"
+	connectPkt.ClientIdentifier = testClientID
 	connectPkt.Username = "baduser"
 	connectPkt.Password = []byte("badpass")
 	connectPkt.UsernameFlag = true
@@ -315,7 +320,7 @@ func TestMQTTParser_DownstreamPublish(t *testing.T) {
 
 	// Create PUBLISH packet from broker
 	publishPkt := packets.NewControlPacket(packets.Publish).(*packets.PublishPacket)
-	publishPkt.TopicName = "test/topic"
+	publishPkt.TopicName = testTopic
 	publishPkt.Payload = []byte("broker message")
 	publishPkt.Qos = 0
 

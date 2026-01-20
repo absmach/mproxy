@@ -77,7 +77,6 @@ type Server struct {
 	parser     parser.Parser
 	handler    handler.Handler
 	wg         sync.WaitGroup
-	mu         sync.Mutex
 	bufferPool *sync.Pool
 	connSem    chan struct{} // semaphore for connection limiting
 }
@@ -147,7 +146,7 @@ func (s *Server) Listen(ctx context.Context) error {
 
 	// Create a separate context for active connections
 	// This allows us to control when to forcefully close connections
-	connCtx, connCancel := context.WithCancel(context.Background())
+	connCtx, connCancel := context.WithCancel(ctx)
 	defer connCancel()
 
 	// Accept loop
@@ -323,7 +322,7 @@ func (s *Server) handleConn(ctx context.Context, inbound net.Conn) error {
 	}
 
 	// Notify disconnect
-	if err := s.handler.OnDisconnect(context.Background(), hctx); err != nil {
+	if err := s.handler.OnDisconnect(ctx, hctx); err != nil {
 		s.config.Logger.Error("disconnect handler error",
 			slog.String("session", sessionID),
 			slog.String("error", err.Error()))

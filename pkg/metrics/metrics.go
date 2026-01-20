@@ -5,36 +5,30 @@
 package metrics
 
 import (
-	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
-var (
-	once sync.Once
-	reg  *prometheus.Registry
-)
-
 // Metrics holds all Prometheus metrics for mProxy.
 type Metrics struct {
 	// Connection metrics
-	ActiveConnections *prometheus.GaugeVec
-	TotalConnections  *prometheus.CounterVec
-	ConnectionErrors  *prometheus.CounterVec
+	ActiveConnections  *prometheus.GaugeVec
+	TotalConnections   *prometheus.CounterVec
+	ConnectionErrors   *prometheus.CounterVec
 	ConnectionDuration *prometheus.HistogramVec
 
 	// Request metrics
-	RequestsTotal    *prometheus.CounterVec
-	RequestDuration  *prometheus.HistogramVec
-	RequestSize      *prometheus.HistogramVec
-	ResponseSize     *prometheus.HistogramVec
+	RequestsTotal   *prometheus.CounterVec
+	RequestDuration *prometheus.HistogramVec
+	RequestSize     *prometheus.HistogramVec
+	ResponseSize    *prometheus.HistogramVec
 
 	// Backend metrics
-	BackendRequestsTotal    *prometheus.CounterVec
-	BackendErrors           *prometheus.CounterVec
-	BackendDuration         *prometheus.HistogramVec
+	BackendRequestsTotal     *prometheus.CounterVec
+	BackendErrors            *prometheus.CounterVec
+	BackendDuration          *prometheus.HistogramVec
 	BackendActiveConnections *prometheus.GaugeVec
 
 	// Circuit breaker metrics

@@ -10,10 +10,8 @@ import (
 	"time"
 )
 
-var (
-	// ErrCircuitOpen is returned when the circuit breaker is open.
-	ErrCircuitOpen = errors.New("circuit breaker is open")
-)
+// ErrCircuitOpen is returned when the circuit breaker is open.
+var ErrCircuitOpen = errors.New("circuit breaker is open")
 
 // State represents the circuit breaker state.
 type State int
@@ -51,14 +49,14 @@ type Config struct {
 
 // CircuitBreaker implements the circuit breaker pattern.
 type CircuitBreaker struct {
-	mu               sync.RWMutex
-	config           Config
-	state            State
-	failures         int
-	successes        int
-	lastFailureTime  time.Time
-	lastStateChange  time.Time
-	onStateChange    func(from, to State)
+	mu              sync.RWMutex
+	config          Config
+	state           State
+	failures        int
+	successes       int
+	lastFailureTime time.Time
+	lastStateChange time.Time
+	onStateChange   func(from, to State)
 }
 
 // New creates a new circuit breaker.

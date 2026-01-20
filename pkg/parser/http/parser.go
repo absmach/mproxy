@@ -82,7 +82,7 @@ func (p *Parser) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Read body for publish authorization with size limit
 	// Default: 10MB max body size to prevent memory exhaustion
-	const maxBodySize = 10 * 1024 * 1024 // 10MB
+	const maxBodySize = 10 * 1024 * 1024                   // 10MB
 	limitedReader := io.LimitReader(r.Body, maxBodySize+1) // +1 to detect if exceeded
 
 	payload, err := io.ReadAll(limitedReader)

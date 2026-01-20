@@ -78,7 +78,7 @@ func (p *WebSocketProxy) Listen(ctx context.Context) error {
 		p.logger.Info("shutdown signal received, closing WebSocket server")
 
 		// Create shutdown context with timeout
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 		defer cancel()
 
 		// Graceful shutdown

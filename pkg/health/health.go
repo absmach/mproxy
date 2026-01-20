@@ -120,13 +120,13 @@ func (c *Checker) HTTPHandler() http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		if status == StatusUnhealthy {
 			w.WriteHeader(http.StatusServiceUnavailable)
-		} else if status == StatusDegraded {
-			w.WriteHeader(http.StatusOK) // Still accept traffic
 		} else {
-			w.WriteHeader(http.StatusOK)
+			w.WriteHeader(http.StatusOK) // Still accept traffic
 		}
 
-		json.NewEncoder(w).Encode(response)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -135,9 +135,11 @@ func LivenessHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{
+		if err := json.NewEncoder(w).Encode(map[string]string{
 			"status": "alive",
-		})
+		}); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -161,6 +163,8 @@ func (c *Checker) ReadinessHandler() http.HandlerFunc {
 			w.WriteHeader(http.StatusOK)
 		}
 
-		json.NewEncoder(w).Encode(response)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }

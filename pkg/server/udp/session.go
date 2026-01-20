@@ -69,7 +69,6 @@ type SessionManager struct {
 	sessions    map[string]*Session
 	mu          sync.RWMutex
 	logger      *slog.Logger
-	wg          sync.WaitGroup
 	maxSessions int
 }
 
@@ -179,13 +178,13 @@ func (sm *SessionManager) Cleanup(ctx context.Context, timeout time.Duration, h 
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			sm.cleanupExpired(timeout, h)
+			sm.cleanupExpired(ctx, timeout, h)
 		}
 	}
 }
 
 // cleanupExpired removes sessions that haven't been active within the timeout.
-func (sm *SessionManager) cleanupExpired(timeout time.Duration, h handler.Handler) {
+func (sm *SessionManager) cleanupExpired(ctx context.Context, timeout time.Duration, h handler.Handler) {
 	now := time.Now()
 	var toRemove []string
 
@@ -209,7 +208,7 @@ func (sm *SessionManager) cleanupExpired(timeout time.Duration, h handler.Handle
 				slog.String("client", sess.RemoteAddr.String()))
 
 			// Notify disconnect
-			if err := h.OnDisconnect(context.Background(), sess.Context); err != nil {
+			if err := h.OnDisconnect(ctx, sess.Context); err != nil {
 				sm.logger.Error("disconnect handler error",
 					slog.String("session", sess.ID),
 					slog.String("error", err.Error()))
@@ -225,7 +224,7 @@ func (sm *SessionManager) cleanupExpired(timeout time.Duration, h handler.Handle
 }
 
 // DrainAll waits for all sessions to complete or forces closure after timeout.
-func (sm *SessionManager) DrainAll(timeout time.Duration, h handler.Handler) error {
+func (sm *SessionManager) DrainAll(ctx context.Context, timeout time.Duration, h handler.Handler) error {
 	sm.logger.Info("draining all UDP sessions")
 
 	sm.mu.RLock()
@@ -261,13 +260,13 @@ func (sm *SessionManager) DrainAll(timeout time.Duration, h handler.Handler) err
 		return nil
 	case <-time.After(timeout):
 		sm.logger.Warn("drain timeout exceeded, forcing session closure")
-		sm.ForceCloseAll(h)
+		sm.ForceCloseAll(ctx, h)
 		return ErrShutdownTimeout
 	}
 }
 
 // ForceCloseAll forcefully closes all sessions.
-func (sm *SessionManager) ForceCloseAll(h handler.Handler) {
+func (sm *SessionManager) ForceCloseAll(ctx context.Context, h handler.Handler) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
@@ -276,7 +275,7 @@ func (sm *SessionManager) ForceCloseAll(h handler.Handler) {
 			slog.String("session", sess.ID))
 
 		// Notify disconnect
-		if err := h.OnDisconnect(context.Background(), sess.Context); err != nil {
+		if err := h.OnDisconnect(ctx, sess.Context); err != nil {
 			sm.logger.Error("disconnect handler error",
 				slog.String("session", sess.ID),
 				slog.String("error", err.Error()))

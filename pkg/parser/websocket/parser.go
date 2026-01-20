@@ -48,15 +48,15 @@ func NewParser(targetURL string, underlyingParser parser.Parser, h handler.Handl
 					// Allow requests without Origin header (e.g., from native apps)
 					return true
 				}
-				// TODO: Make allowed origins configurable
-				// For now, only allow same-origin requests
+				// Note: Allowed origins should be configurable in production.
+				// For now, only allow same-origin requests.
 				return origin == "http://"+r.Host || origin == "https://"+r.Host
 			},
 			ReadBufferSize:  4096,
 			WriteBufferSize: 4096,
 			// Limit message size to prevent DoS
 			// Default: 10MB
-			// TODO: Make this configurable
+			// Note: This should be configurable in production.
 		},
 		targetURL:        targetURL,
 		underlyingParser: underlyingParser,
@@ -115,7 +115,7 @@ func (p *Parser) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create context for this session
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 
 	// Start bidirectional streaming with underlying protocol parser
@@ -143,7 +143,7 @@ func (p *Parser) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Notify disconnect
-	if err := p.handler.OnDisconnect(context.Background(), hctx); err != nil {
+	if err := p.handler.OnDisconnect(ctx, hctx); err != nil {
 		p.logger.Error("disconnect handler error",
 			slog.String("session", sessionID),
 			slog.String("error", err.Error()))

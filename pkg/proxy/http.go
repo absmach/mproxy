@@ -79,7 +79,7 @@ func (p *HTTPProxy) Listen(ctx context.Context) error {
 		p.logger.Info("shutdown signal received, closing HTTP server")
 
 		// Create shutdown context with timeout
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 		defer cancel()
 
 		// Graceful shutdown

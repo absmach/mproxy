@@ -36,6 +36,8 @@ const (
 
 	coapWithoutDTLS = "MPROXY_COAP_WITHOUT_DTLS_"
 	coapWithDTLS    = "MPROXY_COAP_WITH_DTLS_"
+
+	defaultTargetHost = "localhost"
 )
 
 func main() {
@@ -136,7 +138,7 @@ func startMQTTProxy(g *errgroup.Group, ctx context.Context, envPrefix string, ha
 	}
 
 	if cfg.TargetHost == "" {
-		cfg.TargetHost = "localhost"
+		cfg.TargetHost = defaultTargetHost
 	}
 
 	if cfg.TargetPort == "" {
@@ -187,7 +189,7 @@ func startWebSocketProxy(g *errgroup.Group, ctx context.Context, envPrefix strin
 	}
 
 	if cfg.TargetHost == "" {
-		cfg.TargetHost = "localhost"
+		cfg.TargetHost = defaultTargetHost
 	}
 
 	if cfg.TargetPort == "" {
@@ -245,7 +247,7 @@ func startHTTPProxy(g *errgroup.Group, ctx context.Context, envPrefix string, ha
 	}
 
 	if cfg.TargetHost == "" {
-		cfg.TargetHost = "localhost"
+		cfg.TargetHost = defaultTargetHost
 	}
 
 	if cfg.TargetPort == "" {
@@ -300,7 +302,7 @@ func startCoAPProxy(g *errgroup.Group, ctx context.Context, envPrefix string, ha
 	}
 
 	if cfg.TargetHost == "" {
-		cfg.TargetHost = "localhost"
+		cfg.TargetHost = defaultTargetHost
 	}
 
 	if cfg.TargetPort == "" {

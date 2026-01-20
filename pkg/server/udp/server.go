@@ -257,7 +257,7 @@ func (s *Server) Listen(ctx context.Context) error {
 	s.config.Logger.Info("all workers stopped")
 
 	// Drain sessions with timeout
-	return s.sessions.DrainAll(s.config.ShutdownTimeout, s.handler)
+	return s.sessions.DrainAll(ctx, s.config.ShutdownTimeout, s.handler)
 }
 
 // startWorkerPool starts the worker goroutines for packet processing.
@@ -323,18 +323,18 @@ func (s *Server) handlePacket(ctx context.Context, listener *net.UDPConn, client
 
 	// If this is a new session, start downstream reader
 	if isNew {
-		go s.readDownstream(sess, listener)
+		go s.readDownstream(sess.ctx, sess, listener)
 	}
 
 	return nil
 }
 
 // readDownstream continuously reads packets from the backend and forwards to the client.
-func (s *Server) readDownstream(sess *Session, listener *net.UDPConn) {
+func (s *Server) readDownstream(ctx context.Context, sess *Session, listener *net.UDPConn) {
 	defer func() {
 		// Remove session when downstream reader exits
 		s.sessions.Remove(sess.RemoteAddr)
-		if err := s.handler.OnDisconnect(context.Background(), sess.Context); err != nil {
+		if err := s.handler.OnDisconnect(ctx, sess.Context); err != nil {
 			s.config.Logger.Error("disconnect handler error",
 				slog.String("session", sess.ID),
 				slog.String("error", err.Error()))
@@ -346,7 +346,7 @@ func (s *Server) readDownstream(sess *Session, listener *net.UDPConn) {
 
 	for {
 		select {
-		case <-sess.ctx.Done():
+		case <-ctx.Done():
 			return
 		default:
 		}
@@ -388,7 +388,7 @@ func (s *Server) readDownstream(sess *Session, listener *net.UDPConn) {
 		reader := bytes.NewReader(buffer[:n])
 		writer := &udpClientWriter{conn: listener, addr: sess.RemoteAddr}
 
-		if err := s.parser.Parse(sess.ctx, reader, writer, parser.Downstream, s.handler, sess.Context); err != nil {
+		if err := s.parser.Parse(ctx, reader, writer, parser.Downstream, s.handler, sess.Context); err != nil {
 			s.config.Logger.Debug("parser error",
 				slog.String("session", sess.ID),
 				slog.String("direction", "downstream"),

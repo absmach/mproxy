@@ -30,17 +30,19 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+const logError = "error"
+
 // Config holds the application configuration.
 type Config struct {
 	// Observability
-	MetricsPort  int    `env:"METRICS_PORT"  envDefault:"9090"`
-	HealthPort   int    `env:"HEALTH_PORT"   envDefault:"8080"`
-	LogLevel     string `env:"LOG_LEVEL"     envDefault:"info"`
-	LogFormat    string `env:"LOG_FORMAT"    envDefault:"json"`
+	MetricsPort int    `env:"METRICS_PORT"  envDefault:"9090"`
+	HealthPort  int    `env:"HEALTH_PORT"   envDefault:"8080"`
+	LogLevel    string `env:"LOG_LEVEL"     envDefault:"info"`
+	LogFormat   string `env:"LOG_FORMAT"    envDefault:"json"`
 
 	// Resource Limits
-	MaxConnections  int `env:"MAX_CONNECTIONS"  envDefault:"10000"`
-	MaxGoroutines   int `env:"MAX_GOROUTINES"   envDefault:"50000"`
+	MaxConnections int `env:"MAX_CONNECTIONS"  envDefault:"10000"`
+	MaxGoroutines  int `env:"MAX_GOROUTINES"   envDefault:"50000"`
 
 	// Connection Pooling
 	PoolMaxIdle     int           `env:"POOL_MAX_IDLE"      envDefault:"100"`
@@ -48,9 +50,9 @@ type Config struct {
 	PoolIdleTimeout time.Duration `env:"POOL_IDLE_TIMEOUT"  envDefault:"5m"`
 
 	// Circuit Breaker
-	BreakerMaxFailures   int           `env:"BREAKER_MAX_FAILURES"   envDefault:"5"`
-	BreakerResetTimeout  time.Duration `env:"BREAKER_RESET_TIMEOUT"  envDefault:"60s"`
-	BreakerTimeout       time.Duration `env:"BREAKER_TIMEOUT"        envDefault:"30s"`
+	BreakerMaxFailures  int           `env:"BREAKER_MAX_FAILURES"   envDefault:"5"`
+	BreakerResetTimeout time.Duration `env:"BREAKER_RESET_TIMEOUT"  envDefault:"60s"`
+	BreakerTimeout      time.Duration `env:"BREAKER_TIMEOUT"        envDefault:"30s"`
 
 	// Rate Limiting
 	RateLimitCapacity  int64 `env:"RATE_LIMIT_CAPACITY"   envDefault:"100"`
@@ -70,14 +72,20 @@ type Config struct {
 }
 
 func main() {
+	if err := run(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	// Load configuration
 	cfg := Config{}
 	if err := godotenv.Load(); err != nil {
 		// .env file is optional
 	}
 	if err := env.Parse(&cfg); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to parse config: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to parse config: %w", err)
 	}
 
 	// Setup logger
@@ -216,7 +224,7 @@ func main() {
 
 	mqttProxy, err := proxy.NewMQTT(mqttProxyConfig, instrumentedHandler)
 	if err != nil {
-		logger.Error("Failed to create MQTT proxy", slog.String("error", err.Error()))
+		logger.Error("Failed to create MQTT proxy", slog.String(logError, err.Error()))
 	} else {
 		g.Go(func() error {
 			address := net.JoinHostPort(mqttProxyConfig.Host, mqttProxyConfig.Port)
@@ -246,7 +254,7 @@ func main() {
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
 	defer shutdownCancel()
 
-	done := make(chan error)
+	done := make(chan error, 1)
 	go func() {
 		done <- g.Wait()
 	}()
@@ -254,13 +262,14 @@ func main() {
 	select {
 	case err := <-done:
 		if err != nil {
-			logger.Error("Shutdown error", slog.String("error", err.Error()))
-			os.Exit(1)
+			logger.Error("Shutdown error", slog.String(logError, err.Error()))
+			return err
 		}
 		logger.Info("Graceful shutdown completed")
+		return nil
 	case <-shutdownCtx.Done():
 		logger.Warn("Shutdown timeout exceeded, forcing exit")
-		os.Exit(1)
+		return shutdownCtx.Err()
 	}
 }
 
@@ -274,7 +283,7 @@ func setupLogger(level, format string) *slog.Logger {
 		logLevel = slog.LevelInfo
 	case "warn":
 		logLevel = slog.LevelWarn
-	case "error":
+	case logError:
 		logLevel = slog.LevelError
 	default:
 		logLevel = slog.LevelInfo
@@ -311,7 +320,7 @@ func startMetricsServer(port int, logger *slog.Logger) {
 	}
 
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		logger.Error("Metrics server error", slog.String("error", err.Error()))
+		logger.Error("Metrics server error", slog.String(logError, err.Error()))
 	}
 }
 
@@ -334,6 +343,6 @@ func startHealthServer(port int, checker *health.Checker, logger *slog.Logger) {
 	}
 
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		logger.Error("Health server error", slog.String("error", err.Error()))
+		logger.Error("Health server error", slog.String(logError, err.Error()))
 	}
 }

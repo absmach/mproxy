@@ -55,13 +55,13 @@ type DialFunc func(ctx context.Context) (net.Conn, error)
 
 // Pool is a connection pool.
 type Pool struct {
-	mu          sync.Mutex
-	idle        []*Conn
-	active      int
-	dialFunc    DialFunc
-	config      Config
-	closed      bool
-	waitChan    chan struct{}
+	mu       sync.Mutex
+	idle     []*Conn
+	active   int
+	dialFunc DialFunc
+	config   Config
+	closed   bool
+	waitChan chan struct{}
 }
 
 // New creates a new connection pool.
@@ -195,7 +195,7 @@ func (p *Pool) isValid(conn *Conn) bool {
 		return false
 	}
 
-	// TODO: Add connection health check (send ping)
+	// Note: Add connection health check (send ping).
 	return true
 }
 

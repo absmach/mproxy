@@ -110,7 +110,9 @@ func TestTCPServer_ListenAndAccept(t *testing.T) {
 		defer conn.Close()
 
 		// Echo back
-		io.Copy(conn, conn)
+		if _, err := io.Copy(conn, conn); err != nil {
+			return
+		}
 	}()
 
 	// Create server
@@ -266,7 +268,9 @@ func TestTCPServer_BackendDialFailure(t *testing.T) {
 		// Server might have shut down already
 		return
 	}
-	conn.Write([]byte("test"))
+	if _, err := conn.Write([]byte("test")); err != nil {
+		t.Fatalf("Failed to write to server: %v", err)
+	}
 	conn.Close()
 
 	// Server should continue running despite failed backend dial
@@ -337,10 +341,24 @@ func TestTCPServer_ParseError(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go server.Listen(ctx)
+	serverErr := make(chan error, 1)
+	go func() {
+		serverErr <- server.Listen(ctx)
+	}()
 	time.Sleep(100 * time.Millisecond)
 
 	// Server should be running fine despite parse errors in connections
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case err := <-serverErr:
+			if err != nil && err != context.Canceled {
+				t.Logf("Server stopped with error: %v", err)
+			}
+		case <-time.After(2 * time.Second):
+			t.Log("Server shutdown timeout")
+		}
+	})
 }
 
 func TestTCPServer_ContextCancellation(t *testing.T) {
@@ -454,7 +472,9 @@ func TestTCPServer_TCPOptions(t *testing.T) {
 		conn, _ := backendListener.Accept()
 		if conn != nil {
 			defer conn.Close()
-			io.Copy(conn, conn)
+			if _, err := io.Copy(conn, conn); err != nil {
+				return
+			}
 		}
 	}()
 
@@ -477,10 +497,21 @@ func TestTCPServer_TCPOptions(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go server.Listen(ctx)
+	serverErr := make(chan error, 1)
+	go func() {
+		serverErr <- server.Listen(ctx)
+	}()
 	time.Sleep(100 * time.Millisecond)
 
 	cancel()
+	select {
+	case err := <-serverErr:
+		if err != nil && err != context.Canceled {
+			t.Logf("Server stopped with error: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Log("Server shutdown timeout")
+	}
 }
 
 func TestTCPServer_BufferPool(t *testing.T) {

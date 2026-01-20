@@ -9,7 +9,7 @@ import (
 	"fmt"
 )
 
-// Common error types
+// Common error types.
 var (
 	// ErrUnauthorized indicates authentication or authorization failure.
 	ErrUnauthorized = errors.New("unauthorized")
@@ -41,11 +41,11 @@ var (
 
 // ProxyError wraps an error with additional context.
 type ProxyError struct {
-	Op        string // Operation that failed
-	Protocol  string // Protocol (mqtt, http, coap, websocket)
-	SessionID string // Session identifier
+	Op         string // Operation that failed
+	Protocol   string // Protocol (mqtt, http, coap, websocket)
+	SessionID  string // Session identifier
 	RemoteAddr string // Client address
-	Err       error  // Underlying error
+	Err        error  // Underlying error
 }
 
 // Error implements the error interface.
@@ -67,11 +67,11 @@ func New(op, protocol, sessionID, remoteAddr string, err error) error {
 		return nil
 	}
 	return &ProxyError{
-		Op:        op,
-		Protocol:  protocol,
-		SessionID: sessionID,
+		Op:         op,
+		Protocol:   protocol,
+		SessionID:  sessionID,
 		RemoteAddr: remoteAddr,
-		Err:       err,
+		Err:        err,
 	}
 }
 
